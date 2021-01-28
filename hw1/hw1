@@ -1,0 +1,109 @@
+                       HOMEWORK 1
+	         DEADLINE: Thurs., Jan. 28
+
+For homework 1, you must write a "realistic" program in assembly.
+The program is the C program:  hw1-insertionsort.c
+in the course directory.
+You can test it via:  gcc hw1-insertionsort.c; ./a.out
+
+In addition, you must include each line of the C source code as
+a comment just before the corresponding assembly code.
+For example:
+ # x = y + z;
+ add $t4, $t2, $t1
+ # x -= 2;
+ sub $t4, $t4, 2
+
+You must submit (using the on-line submit script) your assembly source.
+You must submit it as a .tar.gz file.
+To submit on-line, login to the UNIX system and do:
+    /course/cs7600/homework/submit-cs7600-hw1  hw1.tar.gz
+(assuming that your assembly program is in hw1.s, inside hw1.tar.gz)
+Recall that to create a tar file, you can do (for example):
+  mkdir hw1
+  cp hw1.s hw1/
+  tar zcvf hw1.tar.gz ./hw1
+[ Note that in hw1.s, the filetype .s is a traditional name for assembly files.
+  Some of you may prefer hw1.asm, from Mars.  Both filetypes are fine. ]
+For more information, see 'man mkdir', 'man tar', etc.
+
+======================================================================
+Please use the MARS simulator, and especially its singlestep/backstep
+feature.  This will make your debugging much easier.
+
+Note that MARS supports various print commands as system calls
+(using syscall) (see Figure A.9.1, p. A-44 in the textbook).
+
+======================================================================
+INITIALIZATION OF DATA STRUCTURES:
+
+Note also that for this C program, you will need to initialize the
+array of strings:  {"Joe", ...}
+To do so, you will need to use the assembler directives on
+ pp. A-47 -- A-49.
+The most useful directives for this are:  .asciiz  and  .align
+For example:
+           .align 5  # in our example, names start on a 32-byte boundary
+dataName:  .asciiz "Joe"
+           .align 5
+           .asciiz "Jenny"
+           ...
+Then, array points to "Joe", array+32 points to "Jenny", etc.
+
+Once you have done this, you can then create the array, dataName[],
+in hw1-insertionsort.c.  Rather than manipulate
+'dataName', an array of strings, it is better to manipulate 'dataAddr',
+an array of pointers to strings.  You should represent dataAddr[] as an array
+of addresses (pointers), where each address points to a string.
+So, you will initialize data as:
+
+          .align 2  # addresses should start on a word boundary
+dataAddr: .space 64 # 16 pointers to strings: 16*4 = 64
+
+This .space directive will allocate space, but it will not
+initialize the space.  Later, you must write code inside main()
+that will initialize the space so that each word starting at 'dataAddr'
+points to the address of the next string found at 'dataName'.
+
+======================================================================
+LOAD/STORE INSTRUCTIONS IN ASSEMBLY:
+
+Note these four variations of load/store:
+  sw $t1, 4($sp) # store #t1 into RAM
+  lw $t1, 4($sp) # load into #t1 from RAM
+  li $t1, $t2    # load immediate data into #t1 ($t2 should be data)
+  la $t1, $t2    # load address into #t1 ($t2 should be address);
+                 # This does _not_ use RAM.  It computes an address for later.
+  move $t1, $t2  @ copy from register #t2 to rgister $t1
+
+Examples for the above:
+  lw   # coyp from memory to register; lw $t1, 0($t2) ; lw $t1, data
+  sw   # coyp from register to memory; sw $t1, -($t2);  sw $t1, data
+  move # copy between two registers (does not touch memory); move $t3, $t1
+  la   # compute an address and save it in register (does not touch memory)
+       # Example:  la $t5, size
+                   lw $t6 0($t5)
+  li   # copy a constant (data, not address) into a register.
+       # Example:  li $t6, 16
+
+
+======================================================================
+USING THE MARS SIMULATOR:
+
+I assume that you run, and then you hit an error.  Let's assume there is
+a problem with register $t1 (out-of-bounds??).
+
+1.  On the right in Mars, click on "Registers".  Look at the value
+    of $t1 (and any other registers that are related to it in your code).
+2.  You have two choices to debug.
+  a.   Execute backwards until you see some
+       code that modifies $t1.  Examine if it's doing the right thing.
+  b.   Or look in your code to see where $t1 was being modified, and
+        set a breakpoint there.  ("Bkpt" boxes on the left).
+       Then start executing from the beginning.  It will stop at
+        the breakpoint during _the first time that $t1 is used in
+         relation to htis bug_.
+4.  Domryimrd, you will hit an infinite loop.  When it's an infinite
+    loop, then let it execute in the loop.  But then stop it (anywhere
+    at all).  Then single-step, and watch why it keeps coming back to
+    the same loop.
