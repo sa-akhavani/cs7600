@@ -37,6 +37,12 @@ dataName:   .asciiz "Joe"
 dataAddr:   .space 64 # 16 pointers to strings: 16*4 = 64
 
 # int size = 16;
+size:       .word 16
+
+PRINT1:     .asciiz "Initial array is:\n"
+PRINT2:     .asciiz "Insertion sort is finished!\n"
+
+# int size = 16;
 # size:       16
 
 
@@ -44,19 +50,65 @@ dataAddr:   .space 64 # 16 pointers to strings: 16*4 = 64
 .globl main
 
 
+# int main(void)
 main:
     subu $sp,$sp,32
     sw $ra,20($sp)
 
-# int size = 16;
-    la $a0, dataName    # load address of array
-    li $a1, 16
 
+# printf("Initial array is:\n");
+    li $v0, 4
+    la $a0, PRINT1
+    syscall
+
+# print_array(data, size);
+    la $a0, dataName    # load address of array
+    la $a1, size
     jal print_array
+
+
+#   insertSort(data, size);
+    la $a0, dataName    # load address of array
+    la $a1, size
+    jal insertSort
+
+
+#   printf("Insertion sort is finished!\n");
+    li $v0, 4
+    la $a0, PRINT2
+    syscall
+
+# print_array(data, size);
+    la $a0, dataName    # load address of array
+    la $a1, size
+    jal print_array
+
+# exit(0);
     li $v0, 10
     syscall
 
 
+
+
+# ############ FUNCTION #############
+# void insertSort(char * a[], size_t length);
+insertSort:
+    subu $sp,$sp,32
+    sw $ra,20($sp)
+
+
+    jr $ra # Return to caller
+
+
+
+# ############ FUNCTION #############
+# int str_lt (char *x, char *y)
+str_lt:
+    subu $sp,$sp,32
+    sw $ra,20($sp)
+
+
+    jr $ra # Return to caller
 
 
 # ############ FUNCTION #############
@@ -75,7 +127,7 @@ print_array:
     # lw $t0,0($sp) # Load size ($t0 is size)
     
     move $t0, $a0   # Load Array Address into t0. ($t0 is array's first element address)
-    add $t1, $a1, 0 # Load Argument Size into t0. ($t0 is size)
+    lw $t1, 0($a1) # Load Argument Size into t0. ($t0 is size)
     
 #  int i=0;
     li $t2, 0
