@@ -92,6 +92,10 @@ loop_1:
     la $a1, size
     jal print_array
 
+
+    lw $ra,20($sp) # Restore return address
+    addiu $sp,$sp,32 # Pop stack frame
+
 # exit(0);
     li $v0, 10
     syscall
@@ -105,7 +109,57 @@ insertSort:
     subu $sp,$sp,32
     sw $ra,20($sp)
 
+# i = 1
+    li $t0, 1   # i is $t0
+    move $t1, $a0   # Load Array Address into t1. ($t1 is array's first element address)
+    lw $t2, 0($a1) # Load Argument Size into t2. ($t2 is length)
+#    add $t1, $t1, 4 # t1 is array's second element
 
+
+# for(i = 1; i < length; i++)
+loop_2:
+# char *value = a[i];
+    mul $t3, $t0, 4
+    add $t3, $t1, $t3
+    lw $t3, 0($t3)  # t3 is value = a[i]
+
+
+# j = i-1
+    sub $t4, $t0, 1 # t4 is j
+# for (j = i-1; j >= 0 && str_lt(value, a[j]); j--)
+loop_3:
+# a[j]    
+    mul $t5, $t4, 4
+    add $t5, $t1, $t5
+#    lw $t5, 0($t5)  # t5 is a[j]
+    la $a1, 0($t5)
+# value
+    la $a0, 0($t3)
+
+    jal str_lt
+    move $t6, $v0 # t6 is the return value of str_lt
+
+# j--
+    sub $t4, $t4, 1 # t4 is j
+
+# condition str_lt(value, a[j])
+    blez $t6, exit_loop_3
+# j >= 0
+    bgez $t4, loop_3
+
+exit_loop_3:
+# a[j+1] = value;
+    add $t4, $t4, 1 # j+1
+    mul $t6, $t4, 4
+    add $t6, $t1, $t6
+    sw $t3, 0($t6)  # t6 is a[j]. Store value into a[j+1]
+
+# i++    
+    add $t0, $t0, 1
+    blt $t0, $t2, loop_2 # Branch on less than. i < size
+
+    lw $ra,20($sp) # Restore return address
+    addiu $sp,$sp,32 # Pop stack frame
     jr $ra # Return to caller
 
 
@@ -116,7 +170,10 @@ str_lt:
     subu $sp,$sp,32
     sw $ra,20($sp)
 
+    li $v0, 0
 
+    lw $ra,20($sp) # Restore return address
+    addiu $sp,$sp,32 # Pop stack frame
     jr $ra # Return to caller
 
 
@@ -132,11 +189,9 @@ NEWLINE:.asciiz "\n"
 print_array:
     subu $sp,$sp,32
     sw $ra,20($sp)
-    # sw $a0,0($sp) # Save argument (size):  0($sp) is the variable 'size'
-    # lw $t0,0($sp) # Load size ($t0 is size)
     
     move $t0, $a0   # Load Array Address into t0. ($t0 is array's first element address)
-    lw $t1, 0($a1) # Load Argument Size into t0. ($t0 is size)
+    lw $t1, 0($a1) # Load Argument Size into t1. ($t1 is size)
     
 #  int i=0;
     li $t2, 0
@@ -169,4 +224,6 @@ loop:
     la $a0, RBRKT
     syscall
 
+    lw $ra,20($sp) # Restore return address
+    addiu $sp,$sp,32 # Pop stack frame
     jr $ra # Return to caller
