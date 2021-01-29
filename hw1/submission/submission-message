@@ -1,0 +1,9 @@
+If your file is successfully submitted, you will see
+  a confirmation message at the end of this command.
+
+Your file, hw1.tar.gz, has been successfully submitted
+  as file:  /net/course/cs7600/homework/hw1.handin/akhavani-hw1.tar.gz.202867602
+
+If you change your mind, you can delete the file by doing:
+  rm /net/course/cs7600/homework/hw1.handin/akhavani-hw1.tar.gz.202867602
+
