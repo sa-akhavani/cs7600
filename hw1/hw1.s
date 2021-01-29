@@ -32,7 +32,6 @@ dataName:   .asciiz "Joe"
             .asciiz "Janet"
             .align 5
             .asciiz "Jane"
-            .align 5
 
             .align 2  # addresses should start on a word boundary
 dataAddr:   .space 64 # 16 pointers to strings: 16*4 = 64
@@ -103,12 +102,12 @@ loop_1:
 
 
 
-
 # ############ FUNCTION #############
+# ############ insertSort ###########
 # void insertSort(char * a[], size_t length);
 insertSort:
     subu $sp,$sp,32
-    sw $ra,60($sp)
+    sw $ra,20($sp)
 
 # i = 1
     li $s0, 1   # i is $s0
@@ -129,7 +128,7 @@ loop_2:
     sub $s4, $s0, 1 # s4 is j
 # for (j = i-1; j >= 0 && str_lt(value, a[j]); j--)
 loop_3:
-# a[j]    
+# a[j]
     mul $s5, $s4, 4
     add $s5, $s1, $s5
     lw $s5, 0($s5)  # s5 is a[j]
@@ -146,11 +145,12 @@ loop_3:
     add $s6, $s1, $s6
     sw $s5, 0($s6)
 
+# condition str_lt(value, a[j])
+    blez $t7, exit_loop_3
+
 # j--
     sub $s4, $s4, 1 # s4 is j
 
-# condition str_lt(value, a[j])
-    blez $t7, exit_loop_3
 # j >= 0
     bgez $s4, loop_3
 
@@ -165,20 +165,21 @@ exit_loop_3:
     add $s0, $s0, 1
     blt $s0, $s2, loop_2 # Branch on less than. i < size
 
-    lw $ra,60($sp) # Restore return address
+    lw $ra,20($sp) # Restore return address
     addiu $sp,$sp,32 # Pop stack frame
     jr $ra # Return to caller
 
 
 
 # ############ FUNCTION #############
+# ############ str_lt ###############
 .data
     ENDCAR:  .ascii "\0"
 .text
 # int str_lt (char *x, char *y)
 str_lt:
     subu $sp,$sp,32
-    sw $ra,100($sp)
+    sw $ra,20($sp)
 
     move $t0, $a0   # Address of char* x
     move $t1, $a1 # Address of char* y
@@ -225,23 +226,24 @@ end_fn_with_0:
     li $v0, 0 # return value 0 of function
 
 return_fn:
-    lw $ra,100($sp) # Restore return address
+    lw $ra,20($sp) # Restore return address
     addiu $sp,$sp,32 # Pop stack frame
     jr $ra # Return to caller
 
 
 # ############ FUNCTION #############
+# ############ print_array ##########
 # void print_array(char * a[], const int size)
 .data
 LBRKT:  .asciiz "["
-RBRKT:  .asciiz "]\n"
+RBRKT:  .asciiz " ]\n"
 SPACES: .asciiz "  "
 NEWLINE:.asciiz "\n"
 
 .text
 print_array:
     subu $sp,$sp,32
-    sw $ra,140($sp)
+    sw $ra,20($sp)
     
     move $t0, $a0   # Load Array Address into t0. ($t0 is array's first element address)
     lw $t1, 0($a1) # Load Argument Size into t1. ($t1 is size)
@@ -277,6 +279,6 @@ loop:
     la $a0, RBRKT
     syscall
 
-    lw $ra,140($sp) # Restore return address
+    lw $ra,20($sp) # Restore return address
     addiu $sp,$sp,32 # Pop stack frame
     jr $ra # Return to caller
