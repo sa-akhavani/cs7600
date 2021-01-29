@@ -108,7 +108,7 @@ loop_1:
 # void insertSort(char * a[], size_t length);
 insertSort:
     subu $sp,$sp,32
-    sw $ra,20($sp)
+    sw $ra,60($sp)
 
 # i = 1
     li $s0, 1   # i is $s0
@@ -166,7 +166,7 @@ exit_loop_3:
     add $s0, $s0, 1
     blt $s0, $s2, loop_2 # Branch on less than. i < size
 
-    lw $ra,20($sp) # Restore return address
+    lw $ra,60($sp) # Restore return address
     addiu $sp,$sp,32 # Pop stack frame
     jr $ra # Return to caller
 
@@ -179,7 +179,7 @@ exit_loop_3:
 # int str_lt (char *x, char *y)
 str_lt:
     subu $sp,$sp,32
-    sw $ra,20($sp)
+    sw $ra,100($sp)
 
     move $t0, $a0   # Address of char* x
     move $t1, $a1 # Address of char* y
@@ -226,7 +226,7 @@ end_fn_with_0:
     li $v0, 0 # return value 0 of function
 
 return_fn:
-    lw $ra,20($sp) # Restore return address
+    lw $ra,100($sp) # Restore return address
     addiu $sp,$sp,32 # Pop stack frame
     jr $ra # Return to caller
 
@@ -242,7 +242,7 @@ NEWLINE:.asciiz "\n"
 .text
 print_array:
     subu $sp,$sp,32
-    sw $ra,20($sp)
+    sw $ra,140($sp)
     
     move $t0, $a0   # Load Array Address into t0. ($t0 is array's first element address)
     lw $t1, 0($a1) # Load Argument Size into t1. ($t1 is size)
@@ -278,6 +278,6 @@ loop:
     la $a0, RBRKT
     syscall
 
-    lw $ra,20($sp) # Restore return address
+    lw $ra,140($sp) # Restore return address
     addiu $sp,$sp,32 # Pop stack frame
     jr $ra # Return to caller
