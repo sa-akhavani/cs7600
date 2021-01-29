@@ -122,7 +122,7 @@ loop_2:
     mul $t3, $t0, 4
     add $t3, $t1, $t3
     lw $t3, 0($t3)  # t3 is value = a[i]
-    move $t0, $t3
+    move $s0, $t3
 
 
 # j = i-1
