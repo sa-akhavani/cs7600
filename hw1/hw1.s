@@ -38,22 +38,31 @@ dataAddr:   .space 64 # 16 pointers to strings: 16*4 = 64
 
 # int size = 16;
 size:       .word 16
-
 PRINT1:     .asciiz "Initial array is:\n"
 PRINT2:     .asciiz "Insertion sort is finished!\n"
 
-# int size = 16;
-# size:       16
-
-
 .text
 .globl main
-
 
 # int main(void)
 main:
     subu $sp,$sp,32
     sw $ra,20($sp)
+
+# Fill dataAddr with addresses of dataNames
+    la $t0, dataName
+    la $t1, size
+    lw $t1, 0($t1)
+    la $t3, dataAddr
+    li $t4, 0
+loop_1:
+    move $t2, $t0 # move address of dataName[i] to dataAddr[i]
+    sw $t2, 0($t3)
+
+    add $t4, $t4, 1 # i++
+    add $t0, $t0, 32 # go to next element of dataName
+    add $t3, $t3, 4 # go to next element of dataAddr
+    blt $t4, $t1, loop_1 # Branch on less than. i < size
 
 
 # printf("Initial array is:\n");
@@ -62,13 +71,13 @@ main:
     syscall
 
 # print_array(data, size);
-    la $a0, dataName    # load address of array
+    la $a0, dataAddr    # load address of array
     la $a1, size
     jal print_array
 
 
 #   insertSort(data, size);
-    la $a0, dataName    # load address of array
+    la $a0, dataAddr    # load address of array
     la $a1, size
     jal insertSort
 
@@ -79,7 +88,7 @@ main:
     syscall
 
 # print_array(data, size);
-    la $a0, dataName    # load address of array
+    la $a0, dataAddr    # load address of array
     la $a1, size
     jal print_array
 
@@ -116,7 +125,7 @@ str_lt:
 .data
 LBRKT:  .asciiz "["
 RBRKT:  .asciiz "]\n"
-SPACES:   .asciiz "  "
+SPACES: .asciiz "  "
 NEWLINE:.asciiz "\n"
 
 .text
@@ -147,12 +156,12 @@ loop:
     syscall
 
     li $v0, 4
-    move $a0, $t0
+    lw $a0, 0($t0)
     syscall
 
 # i++    
     add $t2, $t2, 1
-    add $t0, $t0, 32
+    add $t0, $t0, 4
     blt $t2, $t1, loop # Branch on less than. i < size
 
 # printf(" ]\n");
