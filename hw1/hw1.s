@@ -132,9 +132,9 @@ loop_3:
     mul $t5, $t4, 4
     add $t5, $t1, $t5
 #    lw $t5, 0($t5)  # t5 is a[j]
-    la $a1, 0($t5)
+    move $a1, $t5
 # value
-    la $a0, 0($t3)
+    move $a0, $t3
 
     jal str_lt
     move $t6, $v0 # t6 is the return value of str_lt
@@ -165,13 +165,59 @@ exit_loop_3:
 
 
 # ############ FUNCTION #############
+.data
+    ENDCAR:  .ascii "\0"
+.text
 # int str_lt (char *x, char *y)
 str_lt:
     subu $sp,$sp,32
     sw $ra,20($sp)
 
-    li $v0, 0
+    move $t0, $a0   # Address of char* x
+    move $t1, $a1 # Address of char* y
+    la $t7, ENDCAR
+    lw $t7, 0($t7) # load "\0" into t7
 
+#  for (; *x!='\0' && *y!='\0'; x++, y++)
+loop_str:
+    lb $t2, 0($t0)
+    lb $t3, 0($t1)
+# *x!='\0'
+    sub $t5, $t2, $t7
+    beqz $t5, after_loop
+
+# *y!='\0'
+    sub $t5, $t3, $t7
+    beqz $t5, after_loop
+
+#    if ( *x < *y ) return 1;
+    sub $t4, $t2, $t3
+    bltz $t4, end_fn_with_1
+
+#    if ( *y < *x ) return 0;
+    sub $t4, $t3, $t2
+    bltz $t4, end_fn_with_0
+
+    add $t0, $t0, 1
+    add $t1, $t1, 1
+    b loop_str
+    
+#  if ( *y == '\0' ) return 0;    
+after_loop:
+    sub $t5, $t3, $t7
+    beqz $t5, end_fn_with_0
+
+#  else return 1;
+# return 1
+end_fn_with_1:
+    li $v0, 1 # return value 1 of function
+    b return_fn
+
+# return 0
+end_fn_with_0:
+    li $v0, 0 # return value 0 of function
+
+return_fn:
     lw $ra,20($sp) # Restore return address
     addiu $sp,$sp,32 # Pop stack frame
     jr $ra # Return to caller
