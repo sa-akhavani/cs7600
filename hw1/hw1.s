@@ -111,7 +111,7 @@ insertSort:
     sw $ra,60($sp)
 
 # i = 1
-    li $s0, 1   # i is $s0
+    li $t0, 1   # i is $t0
     move $t1, $a0   # Load Array Address into t1. ($t1 is array's first element address)
     lw $t2, 0($a1) # Load Argument Size into t2. ($t2 is length)
 
@@ -119,14 +119,14 @@ insertSort:
 # for(i = 1; i < length; i++)
 loop_2:
 # char *value = a[i];
-    mul $t3, $s0, 4
+    mul $t3, $t0, 4
     add $t3, $t1, $t3
     lw $t3, 0($t3)  # t3 is value = a[i]
-    move $s0, $t3
+    move $t0, $t3
 
 
 # j = i-1
-    sub $t4, $s0, 1 # t4 is j
+    sub $t4, $t0, 1 # t4 is j
 # for (j = i-1; j >= 0 && str_lt(value, a[j]); j--)
 loop_3:
 # a[j]    
@@ -162,8 +162,8 @@ exit_loop_3:
     sw $t3, 0($t6)  # t6 is a[j]. Store value into a[j+1]
 
 # i++    
-    add $s0, $s0, 1
-    blt $s0, $t2, loop_2 # Branch on less than. i < size
+    add $t0, $t0, 1
+    blt $t0, $t2, loop_2 # Branch on less than. i < size
 
     lw $ra,60($sp) # Restore return address
     addiu $sp,$sp,32 # Pop stack frame
