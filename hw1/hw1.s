@@ -111,59 +111,59 @@ insertSort:
     sw $ra,60($sp)
 
 # i = 1
-    li $t0, 1   # i is $t0
-    move $t1, $a0   # Load Array Address into t1. ($t1 is array's first element address)
-    lw $t2, 0($a1) # Load Argument Size into t2. ($t2 is length)
+    li $s0, 1   # i is $s0
+    move $s1, $a0   # Load Array Address into s1. ($s1 is array's first element address)
+    lw $s2, 0($a1) # Load Argument Size into s2. ($s2 is length)
 
 
 # for(i = 1; i < length; i++)
 loop_2:
 # char *value = a[i];
-    mul $t3, $t0, 4
-    add $t3, $t1, $t3
-    lw $t3, 0($t3)  # t3 is value = a[i]
-    move $s0, $t3
+    mul $s3, $s0, 4
+    add $s3, $s1, $s3
+    lw $s3, 0($s3)  # s3 is value = a[i]
+    move $s7, $s3
 
 
 # j = i-1
-    sub $t4, $t0, 1 # t4 is j
+    sub $s4, $s0, 1 # s4 is j
 # for (j = i-1; j >= 0 && str_lt(value, a[j]); j--)
 loop_3:
 # a[j]    
-    mul $t5, $t4, 4
-    add $t5, $t1, $t5
-    lw $t5, 0($t5)  # t5 is a[j]
-    move $a1, $t5
+    mul $s5, $s4, 4
+    add $s5, $s1, $s5
+    lw $s5, 0($s5)  # s5 is a[j]
+    move $a1, $s5
 # value
-    move $a0, $t3
+    move $a0, $s3
 
     jal str_lt
-    move $t6, $v0 # t6 is the return value of str_lt
+    move $t7, $v0 # s6 is the return value of str_lt
 
 # a[j+1] = a[j];
-    add $t4, $t4, 1 # j+1
-    mul $t6, $t4, 4
-    add $t6, $t1, $t6
-    sw $t5, 0($t6)
+    add $t4, $s4, 1 # j+1
+    mul $s6, $t4, 4
+    add $s6, $s1, $s6
+    sw $s5, 0($s6)
 
 # j--
-    sub $t4, $t4, 1 # t4 is j
+    sub $s4, $s4, 1 # s4 is j
 
 # condition str_lt(value, a[j])
-    blez $t6, exit_loop_3
+    blez $t7, exit_loop_3
 # j >= 0
-    bgez $t4, loop_3
+    bgez $s4, loop_3
 
 exit_loop_3:
 # a[j+1] = value;
-    add $t4, $t4, 1 # j+1
-    mul $t6, $t4, 4
-    add $t6, $t1, $t6
-    sw $t3, 0($t6)  # t6 is a[j]. Store value into a[j+1]
+    add $s4, $s4, 1 # j+1
+    mul $s6, $s4, 4
+    add $s6, $s1, $s6
+    sw $s3, 0($s6)  # s6 is a[j]. Store value into a[j+1]
 
 # i++    
-    add $t0, $t0, 1
-    blt $t0, $t2, loop_2 # Branch on less than. i < size
+    add $s0, $s0, 1
+    blt $s0, $s2, loop_2 # Branch on less than. i < size
 
     lw $ra,60($sp) # Restore return address
     addiu $sp,$sp,32 # Pop stack frame
