@@ -1,0 +1,218 @@
+			Homework 4
+		 Due:  Thurs., Feb. 4
+          [See help.txt for submission instructions]
+
+The file nw2.c contains source code that implements a small shell (see help.txt
+on how to copy the homework directory to your home directory).
+
+To test it, cd to your nw2 directory, and try:
+
+  make
+  % ls
+  % ls -l
+  % exit
+
+[help.txt contains more details about "make"]
+
+Next, note what happens when we execute our shell program recursively.
+
+  ./myshell
+  % ls
+  % myshell
+  % exit
+  % exit
+
+=========================================================================
+PART 1
+=========================================================================
+
+
+Your job is to fix the three bugs in the implementation of myshell.
+(The file shell-simple.c is there, because it is shorter than nw2.c,
+ and can still be used to illustrate a simple shell.  The file
+ simple-shell.c is there for you to read the core logic of a shell.
+ But your bug fixes should be applied to nw2.c.)
+NOTE:  simple-shell.c has been lost.  It was simply nw2.c, but without
+	the generous number of comments.    - Prof. Cooperman
+
+BUG 1:  '#' should be the comment character in the shell.
+
+             ./myshell
+             % ls # This is a comment.
+    
+       COMMENT: It's okay if your shell does not handle:  ls# comment
+                AS LONG AS IT HANDLES:  ls # comment (AND:  ls #comment)
+       
+       You can use getargs() to add the capability for comments.  The
+       character '#' marks the start of a comment.  Any characters from '#' to
+       the end of the line are ignore.
+
+BUG 2: We can't read a script file containing a list of commands.
+       We would like to execute:
+           ./myshell script.myshell
+       and have the commands in script.myshell executed.
+
+       When you fix this bug, you will gain access to the UNIX/Linux feature
+       for scripts.  This is similar to the DOS feature for batch files: .bat
+       For example, consider autoexec.bat.  However, a .bat file must only
+       be interpreted by DOS, and a UNIX interpreted file can be interpreted
+       by whatever command is listed after "#!".
+
+       The first line of script.myshell,
+           #!./myshell
+       says this is an interpreted file, and should be executed as if it were:
+           ./myshell script.myshell
+
+       To fix this bug, When we execute:
+           ./myshell script.myshell
+       we should replace the original stdin, and set this file to stdin.
+
+       To fix this, we need to do two things:
+       1. In main(), check if argc > 1.  If you executed
+              ./myshell script.myshell
+          then argc will be 2 and argv[1] will be the file "script.myshell".
+       2. Next, we need to close stdin and reopen stdin, but bound to argv[1]:
+              freopen(argv[1], "r", stdin);
+       3. Note that it will then work to directly execute:
+              ./script.myshell
+          However, to do this, ./script.myshell must have execute permissions
+          set:
+              chmod a+x ./script.myshell
+          If we want to directly execute under myshell the file:
+              ./script.myshell  
+          then also replace /bin/sh on the first line by the full pathname of
+          myshell.
+
+BUG 3: We can't interrupt without also killing the entire shell.
+       ["sleep 2" sleeps for 2 seconds.]
+
+           ./myshell
+           % sleep 2
+           % sleep 50
+           % ^C
+
+       When we type ^C (interrupt), the operating system passes a SIGINT signal
+       (SIGINT means SIGNAL-INTERRUPT) to the currently running program.  The
+       currently running program will be "myshell".  Since "myshell" does not
+       handle that signal, "myshell" will be killed.  So, we need to write a
+       signal handler for "myshell".  We declare a signal handler with the
+       command:
+           signal(SIGINT, interrupt_handler);
+
+       interrupt_handler is a function of type:
+           void interrupt_handler(int signum);
+
+       Just implementing the function interrupt_handler will prevent ^C from
+       killing your "myshell".  But inside interrupt_handler, you should print
+       information that the ^C was recognized, and then send a SIGINT to the
+       child process, in order to kill the child process.  The UNIX command for
+       this is kill():
+           kill(childpid, SIGINT);
+
+       NOTE: Under Linux, the SIGINT will automatically be passed on to all
+       child processes (in the same process group).  In some earlier dialects of
+       UNIX, this was not true.  Since Linux now has the dominant mindshare,
+       it's fine if you don't include the call to:
+           kill(childpid, SIGINT)
+
+       To test your new "myshell", try running it and interrupting the sleep
+       command:
+
+           make
+           % sleep 10
+           % ^C  # [control-C]
+
+       The 'sleep 10' command simply pauses for 10 seconds.  See if you can
+       interrupt it before the end of the 10 seconds.
+
+       WARNING:  As 'man 2 kill' states, If pid is 0, sig will be sent to all
+                 [of your] processes ....  DON'T call kill with "childpid == 0",
+                 unless you really want to kill every one of your processes on
+                 the current machine.
+
+=========================================================================
+PART 2
+=========================================================================
+
+[Make sure to save your current work before you move on to this part.]
+
+Add pipes and stdin/stdout redirection and background jobs to myshell.
+You only need to support one of the operators '>', '<', '|', or '&'
+in a single command line.  (And the next command line might use a
+different operator.)  You can assume that the command line has
+spaces around the operator.  When you're done, your myshell program
+should be able to handle things like:
+
+  % wc < myfile
+    Instead of reading from standard input, the "wc" command reads from file
+    "myfile".
+
+  % ls -l > FILES.txt
+    The output of "ls" command is written into "FILES.txt" instead of
+    standard-output.
+
+  % sleep 10 &
+    The "sleep 10" command runs in background, and the shell immediately
+    prints a new prompt and accepts a new command.
+
+  % ls | wc
+    This expression "pipes" the output of "ls" command to "wc" command. The
+    "wc" command then prints the number of lines, words and characters. This is
+    a quick way to find out the total number of files in the current directory.
+
+Under Linux, "man pipe" provides description and an example for the pipe
+command. Source code in pipe-example.c provides an example of how to setup a
+pipe for "ls | wc" example in UNIX.
+
+As you look over the examples, be sure to often check the UNIX man pages:
+    man pipe, man dup, man dup2, man perror, man fprintf, etc.
+
+COMMENT:  Hopefully, this will not affect you.  But be aware that UNIX/Linux
+  supports two different kinds of I/O:  the section 2 low-level man pages
+  and section 3 high-level man pages.  Normally, you should not mix the two.
+  The suggestions at the end use the low level version.  This is
+  done in a child process of myshell.  After this is done, execvp()
+  will be called, thus causing the process to execute a new program.
+  For this reason, there should be no conflict between the low-level I/O
+  in your shell program and any high-level I/O used in the child program.
+
+
+SUGGESTIONS FOR IMPLEMENTATION:
+
+(These are suggestions only, not the spec.  If you prefer another way to
+ do this, you may do so.)
+
+MODIFY getargs():
+  Change parsing in getargs() to recognize pipe character '|',
+    and stdin and stdout characters, '<' and '>'.
+  The characters '<' and '>' can occur anywhere, and the next word to be read
+    is saved as file_input and file_output.  However, we will only test
+    for the case that the redirection is at the end of the command
+    line (for example, "we < myfiles.txt").
+
+PIPE EXAMPLE:
+  Create the pipe before fork().  Then both parent and children will share it.
+  FIRST PROCESS AND SECOND PROCESS WILL BOTH BE CHILDREN OF myshell PROCESS.
+  DO THE STUFF BELOW AFTER fork(), BUT BEFORE execvp().
+
+FIRST PROCESS:
+  close(STDOUT_FILENO);
+  dup2(pdf[1], STDOUT_FILENO);  /* Now any output to stdout to go to pipe. */
+
+SECOND PROCESS:
+  close(STDIN_FILENO);
+  dup2(pdf[0], STDIN_FILENO);  /* Now any read from stdin reads from pipe. */
+
+FILE OUTPUT REDIRECT:
+  DO THE STUFF BELOW AFTER fork(), BUT BEFORE execvp().
+  close(STDOUT_FILENO);
+  /* This causes any output to stdout goes to output_file: see 'man open' */
+  fd = open("output_file", O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
+  if (fd == -1) perror("open for writing");
+
+FILE INPUT REDIRECT:
+  DO THE STUFF BELOW AFTER fork(), BUT BEFORE execvp().
+  close(STDIN_FILENO);
+  /* This causes any input from stdin to comre from input_file: see 'man open' */
+  fd = open("input_file", O_RDONLY);  /* Now any read from stdin reads from input_file. */
+  if (fd == -1) perror("open for reading");

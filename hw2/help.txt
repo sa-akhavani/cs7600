@@ -1,0 +1,97 @@
+=========================================================================
+Copying source code in your home directory.
+
+  You can run the following command to copy the entire hw2 directory into your
+home directory:
+    cp -r /course/cs7600/homework/hw2 ~/hw2
+
+  Now change permissions on this directory so others can't look inside it:
+    chmod -R 700 hw2
+
+  Now you can safely add/edit files in hw2 directory.
+
+=========================================================================
+
+Submitting homework:
+
+When you are done, do:
+  make dist    [ This will create a gzipped tar file, such as hw2.tar.gz .]
+Then submit it online:
+  /course/cs7600/homework/submit-cs7600-hw2   hw2.tar.gz
+
+=========================================================================
+
+Makefile:
+  This assignment introduces Makefile.  They are there to make your life
+easier.  A Makefile is a list of "targets" with "dependencies" such as:
+TARGET: DEPENDENT_FILE1 DEPENDENT_FILE2
+<TAB> COMMAND1
+<TAB> COMMAND2
+
+Read Makefile for an example.  To use Makefile, pick a target (e.g. run,
+and do:
+  make run
+
+Note that the command "make" looks for a default file, "Makefile",
+in the current directory, and then executes the commands in "Makefile".
+
+=========================================================================
+Linux Productivity Tools:
+  While I can't enforce this, I encourage all students to use this assignment
+to start learning Linux productivity tools.  A little investment of time now
+will help you do later homeworks faster, and it will also look good to any
+coop employer using Linux/Android as one part of their toolchain.  Hence,
+I include two small tutorials:
+
+1.  EDITOR:  vitutor.vi :  To start,
+	cp /course/cs7600/editors-unix/vitutor.vi ~/
+	cd ~
+	vi vitutor.vi
+    # In about an hour, you will learn all the basic vi commands, and practice
+    # them directly, as you read through vitutor.vi in 'vi' itself.
+    # If you prefer, emacs is another fine editor for Linux.  I demonstrate 'vi'
+    #   here, because it has a little more mindshare at this time.
+
+2.  DEBUGGER:  gdb : Text-oriented, but includes many powerful debugging
+      commands, including 'step', 'next', 'break' (breakpoints), 'continue'
+      Many of you found breakpoints to be useful in debugging the second
+      assembly assignment.  They're also very powerful for C and other languages.
+
+=========================================================================
+DEBUGGING:
+
+For each system call, you can automatically print errors.  We illustrate
+with the call to "close()":
+ if (-1 == open(argv[1])) {
+     perror("open");
+     exit(1);
+ }
+
+You can also use gdb (debugger, line-oriented version of Eclipse, but
+	but much smaller and simpler).  If you use gdb on an executable
+        make sure first that the executable was compiled using "gcc -g -O0".
+        "-g" means to include extra debugging information in symbol table.
+        "-O0" means to do 0 optimizations, so that the assembly code
+	corresponds to the high level C code.
+gdb --args myshell
+(gdb) break main
+(gdb) run
+(gdb) # list at line 30
+(gdb) list 30
+(gdb) print argc
+(gdb) print argv[0]
+(gdb) # print type of variable
+(gdb) ptype argv(0)
+(gdb) ptype argv
+(gdb) # display C stack
+(gdb) where
+(gdb) # next line, step over, not into, functions
+(gdb) next
+(gdb) # set a breakpoint at a function, and continue until there
+(gdb) break getargs
+(gdb) continue
+(gdb) # if it's a function, step into it ('next' would go over it to next line.)
+(gdb) step
+(gdb) quit
+
+=========================================================================
