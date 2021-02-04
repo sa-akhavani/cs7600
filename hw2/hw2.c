@@ -20,6 +20,8 @@
 #define MAXLINE 200  /* This is how we declare constants in C */
 #define MAXARGS 20
 
+void interrupt_handler(int signum);
+
 /* In C, "static" means not visible outside of file.  This is different
  * from the usage of "static" in Java.
  * Note that end_ptr is an output parameter.
@@ -64,6 +66,11 @@ static void getargs(char cmd[], int *argcp, char *argv[])
         exit(1);  /* any non-zero value for exit means failure. */
     }
     while ( (cmdp = getword(cmdp, &end)) != NULL ) { /* end is output param */
+        // PART 1-1
+        // Handle Comments!
+        if (cmdp[0] == '#')
+            break;
+        
         /* getword converts word into null-terminated string */
         argv[i++] = cmdp;
         /* "end" brings us only to the '\0' at end of string */
@@ -93,8 +100,20 @@ static void execute(int argc, char *argv[])
 	/* NOT REACHED unless error occurred */
         exit(1);
     } else /* parent:  in parent, childpid was set to pid of child process */
+
+        // PART 1-3. Handling SIGINT
+        signal(SIGINT, interrupt_handler);
         waitpid(childpid, NULL, 0);  /* wait until child process finishes */
+        // No need to use kill in linux
+        // kill(childpid, SIGINT);
     return;
+}
+
+// PART 1-3
+// SIGINT Handler
+void interrupt_handler(int signum)
+{
+    printf("Process %d Received a SIGINT: %d\n", getpid(), signum);
 }
 
 int main(int argc, char *argv[])
