@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <sys/wait.h>
 #include <string.h>
+#include <fcntl.h>
 
 #define MAXLINE 200  /* This is how we declare constants in C */
 #define MAXARGS 20
@@ -83,7 +84,7 @@ static void getargs(char cmd[], int *argcp, char *argv[])
 static void execute(int argc, char *argv[])
 {
     pid_t childpid; /* child process ID */
-
+    int new_argc = argc;
     childpid = fork();
     if (childpid == -1) { /* in parent (returned error) */
         perror("fork"); /* perror => print error string of last system call */
@@ -93,6 +94,38 @@ static void execute(int argc, char *argv[])
         /* Executes command in argv[0];  It searches for that file in
 	 *  the directories specified by the environment variable PATH.
          */
+
+        // PART 2        
+        if (argc-2 > 0)
+        {
+            // STDOUT
+            if (argv[argc-2][0] == '>')
+            {
+                close(STDOUT_FILENO);
+                int fd = open(argv[argc-1], O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
+                if (fd == -1) perror("open for writing");
+                new_argc = argc - 2;
+
+            } else if (argv[argc-2][0] == '<')
+            {
+                // STDIN
+                close(STDIN_FILENO);
+                int fd = open(argv[argc-1], O_RDONLY);
+                if (fd == -1) perror("open for reading");
+                new_argc = argc - 2;
+
+            } else if (argv[argc-2][0] == '|')
+            {
+                // PIPES
+                printf("Handle Pipe here\n");
+            }
+        }
+        if (argv[argc-1][0] == '&') {
+            new_argc = argc - 1;
+        }
+        
+        argv[new_argc] = NULL;
+
         if (-1 == execvp(argv[0], argv)) {
           perror("execvp");
           printf("  (couldn't find command)\n");
@@ -100,10 +133,17 @@ static void execute(int argc, char *argv[])
 	/* NOT REACHED unless error occurred */
         exit(1);
     } else /* parent:  in parent, childpid was set to pid of child process */
+    {
 
         // PART 1-3. Handling SIGINT
         signal(SIGINT, interrupt_handler);
-        waitpid(childpid, NULL, 0);  /* wait until child process finishes */
+
+        // PART 2 - background process handling!
+        if (argv[argc-1][0] != '&')
+        {
+            waitpid(childpid, NULL, 0);  /* wait until child process finishes */
+        }
+    }
         // No need to use kill in linux
         // kill(childpid, SIGINT);
     return;
@@ -122,7 +162,7 @@ int main(int argc, char *argv[])
     char *childargv[MAXARGS];
     int childargc;
 
-    // // // PART 1-2
+    // PART 1-2
     if (argc > 1)
     {
         freopen(argv[1], "r", stdin);
@@ -139,7 +179,10 @@ int main(int argc, char *argv[])
 	else if ( childargc > 0 && strcmp(childargv[0], "logout") == 0 )
             exit(0);
         else
-	    execute(childargc, childargv);
+        {
+            if (childargc != 0)
+	            execute(childargc, childargv);
+        }
     }
     /* NOT REACHED */
 }
