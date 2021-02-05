@@ -20,6 +20,8 @@
 
 #define MAXLINE 200  /* This is how we declare constants in C */
 #define MAXARGS 20
+#define PIPE_READ 0
+#define PIPE_WRITE 1
 
 void interrupt_handler(int signum);
 
@@ -81,50 +83,95 @@ static void getargs(char cmd[], int *argcp, char *argv[])
     *argcp = i;
 }
 
+// Return the index of pipe op at argv. -1 if no pipe
+int pipe_index(int argc, char *argv[])
+{
+    for (int i = 0; i < argc; i++)
+    {
+        if (argv[i][0] == '|')
+            return i;
+    }
+    return -1;
+}
+
 static void execute(int argc, char *argv[])
 {
-    pid_t childpid; /* child process ID */
+    pid_t child1, child2; /* child process ID */
     int new_argc = argc;
-    childpid = fork();
-    if (childpid == -1) { /* in parent (returned error) */
+
+    //  PART 2 - Handling PIPES
+    int pipe_fd[2];       /* 'man pipe' says its arg is this type */
+    int ffd;               /* 'man dup' says its arg is this type */
+    char * argvChild[2];
+    int pipe_idx = pipe_index(argc, argv);
+    if (pipe_idx != -1)
+    {
+        // fflush(stdout);
+        if (-1 == pipe(pipe_fd)) {
+            perror("pipe");
+        }
+    }
+
+    child1 = fork();
+    if (child1 == -1) { /* in parent (returned error) */
         perror("fork"); /* perror => print error string of last system call */
         printf("  (failed to execute command)\n");
     }
-    if (childpid == 0) { /* child:  in child, childpid was set to 0 */
+
+    if (child1 > 0 && pipe_idx != -1) {
+      child2 = fork();
+    }
+
+    if (child1 == 0) { /* child:  in child, child1 was set to 0 */
         /* Executes command in argv[0];  It searches for that file in
 	 *  the directories specified by the environment variable PATH.
          */
-
-        // PART 2        
-        if (argc-2 > 0)
-        {
-            // STDOUT
-            if (argv[argc-2][0] == '>')
+        if (pipe_idx == -1) {
+            // PART 2. NO Pipe
+            if (argc-2 > 0)
             {
-                close(STDOUT_FILENO);
-                int fd = open(argv[argc-1], O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
-                if (fd == -1) perror("open for writing");
-                new_argc = argc - 2;
+                // STDOUT
+                if (argv[argc-2][0] == '>')
+                {
+                    close(STDOUT_FILENO);
+                    int fd = open(argv[argc-1], O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
+                    if (fd == -1) perror("open for writing");
+                    new_argc = argc - 2;
 
-            } else if (argv[argc-2][0] == '<')
-            {
-                // STDIN
-                close(STDIN_FILENO);
-                int fd = open(argv[argc-1], O_RDONLY);
-                if (fd == -1) perror("open for reading");
-                new_argc = argc - 2;
+                } else if (argv[argc-2][0] == '<')
+                {
+                    // STDIN
+                    close(STDIN_FILENO);
+                    int fd = open(argv[argc-1], O_RDONLY);
+                    if (fd == -1) perror("open for reading");
+                    new_argc = argc - 2;
 
-            } else if (argv[argc-2][0] == '|')
-            {
-                // PIPES
-                printf("Handle Pipe here\n");
+                }
             }
+            if (argv[argc-1][0] == '&') {
+                new_argc = argc - 1;
+            }
+            argv[new_argc] = NULL;
+
+        } else
+        // PIPE IS ENABLED
+        {
+            // close stdout for child 1
+            if (-1 == close(STDOUT_FILENO)) {
+                perror("close");
+            }
+            ffd = dup(pipe_fd[PIPE_WRITE]); /* set up empty STDOUT to be pipe_fd[1] */
+            if (-1 == ffd) {
+                perror("dup");
+            }
+            if (ffd != STDOUT_FILENO) {
+                fprintf(stderr, "Pipe output not at STDOUT.\n");
+            }
+            close(pipe_fd[PIPE_READ]); /* never used by child1 */
+            close(pipe_fd[PIPE_WRITE]); /* not needed any more */
+
+            argv[pipe_idx] = NULL;
         }
-        if (argv[argc-1][0] == '&') {
-            new_argc = argc - 1;
-        }
-        
-        argv[new_argc] = NULL;
 
         if (-1 == execvp(argv[0], argv)) {
           perror("execvp");
@@ -132,20 +179,61 @@ static void execute(int argc, char *argv[])
         }
 	/* NOT REACHED unless error occurred */
         exit(1);
-    } else /* parent:  in parent, childpid was set to pid of child process */
+    } else if (child2 == 0)
     {
+        // Close stdin for child2
+        if (-1 == close(STDIN_FILENO)) {
+            perror("close");
+        }
+        /* set up empty STDIN to be pipe_fd[0] */
+        ffd = dup(pipe_fd[PIPE_READ]);
+        if (-1 == ffd) {
+            perror("dup");
+        }
+        if (ffd != STDIN_FILENO) {
+            fprintf(stderr, "Pipe input not at STDIN.\n");
+        }
+        close(pipe_fd[PIPE_READ]); /* not needed any more */
+        close(pipe_fd[PIPE_WRITE]); /* never used by child2 */
 
+        // Pass args after | to argv
+        for (int i = 0; i < argc; i++)
+        {
+            if (pipe_idx + i + 1 >= argc)
+            {
+                argv[i] = NULL;
+                break;
+            }
+            argv[i] = argv[i+pipe_idx+1];
+        }
+        
+        if (-1 == execvp(argv[0], argv)) {
+          perror("execvp");
+          printf("  (couldn't find command)\n");
+        }
+        exit(1);        
+    }
+    else /* parent:  in parent, child1 was set to pid of child process */
+    {
+        int status;
         // PART 1-3. Handling SIGINT
         signal(SIGINT, interrupt_handler);
 
-        // PART 2 - background process handling!
-        if (argv[argc-1][0] != '&')
+        // Close parent copy of pipes
+        if (pipe_idx != -1)
         {
-            waitpid(childpid, NULL, 0);  /* wait until child process finishes */
+            close(pipe_fd[PIPE_READ]);
+            close(pipe_fd[PIPE_WRITE]);
         }
+
+        // PART 2 - background process handling! Don't wait if & is used.
+        if (argv[argc-1][0] != '&')
+            waitpid(child1, &status, 0);
+
+        // Wait for child2 if pipe is used
+        if (pipe_idx != -1)
+            waitpid(child2, &status, 0);
     }
-        // No need to use kill in linux
-        // kill(childpid, SIGINT);
     return;
 }
 
