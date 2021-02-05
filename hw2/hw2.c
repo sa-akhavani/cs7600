@@ -86,7 +86,8 @@ static void getargs(char cmd[], int *argcp, char *argv[])
 // Return the index of pipe op at argv. -1 if no pipe
 int pipe_index(int argc, char *argv[])
 {
-    for (int i = 0; i < argc; i++)
+    int i;
+    for (i = 0; i < argc; i++)
     {
         if (argv[i][0] == '|')
             return i;
@@ -179,7 +180,7 @@ static void execute(int argc, char *argv[])
         }
 	/* NOT REACHED unless error occurred */
         exit(1);
-    } else if (child2 == 0)
+    } else if (child2 == 0 && pipe_idx != -1)
     {
         // Close stdin for child2
         if (-1 == close(STDIN_FILENO)) {
@@ -197,7 +198,8 @@ static void execute(int argc, char *argv[])
         close(pipe_fd[PIPE_WRITE]); /* never used by child2 */
 
         // Pass args after | to argv
-        for (int i = 0; i < argc; i++)
+        int i;
+        for (i = 0; i < argc; i++)
         {
             if (pipe_idx + i + 1 >= argc)
             {
