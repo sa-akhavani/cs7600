@@ -122,6 +122,12 @@ int main(int argc, char *argv[])
     char *childargv[MAXARGS];
     int childargc;
 
+    // // // PART 1-2
+    if (argc > 1)
+    {
+        freopen(argv[1], "r", stdin);
+    }
+
     while (1) {
         printf("%% "); /* printf uses %d, %s, %x, etc.  See 'man 3 printf' */
         fflush(stdout); /* flush from output buffer to terminal itself */

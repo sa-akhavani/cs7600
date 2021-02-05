@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/home/ali/Desktop/courses/intensive-systems/hw2/myshell
 echo The directory is: $PWD
 echo The hostname is:  $HOST
 echo Your last shell was:  $SHELL
