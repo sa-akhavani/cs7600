@@ -1,0 +1,9 @@
+In mc-philosophers-deadlock.c we clearly see that a deadlock is possible because in philosopher_doit function,
+it tries to lock left fork first pthread_mutex_lock(forks->left_fork); and then right fork. But if all of 
+the threads first lock the left fork, deadlock happens
+because none of the philosophers can take their right fork.
+
+This is clearly seen in the mcmini output too. It says that *** TRACE THAT EXHIBITS DEADLOCK: 1, 2, 3
+This means that thread 1 runs until locks a mutex. Then thread 2 runs till locks a mutex, and finally 3 runs till lock a mutex.
+After this, deadlock happens and all threads are waiting for each other because they cannot lock the next mutex.
+In this case this is like all philosophers are holding the left fork and none of them can take their right fork.

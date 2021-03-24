@@ -1,0 +1,359 @@
+			      Homework 4
+			 DUE:  Tuesday, Mar. 16 
+
+In this homework, you will practice using mutexes (mutual exclusion)
+to create critical sections in your code where only one thread may
+execute at a time.  This will allow you to safely use variables that
+are shared among multiple threads.
+
+The concepts to be covered in this homework and the next one are subtle.
+In order to better understand the concepts, please carefully review
+the course lectures and the corresponding sections in the "Concurrency"
+section of the textbook, ostep.org.  The appropriate sections are stated
+in the syllabus.
+
+You will solve the dining philosopher problem.  The dining philosopher
+problem is stated in this Wikipedia article:
+  https://en.wikipedia.org/wiki/Dining_philosophers_problem
+(I prefer to refer to the utensils as chopsticks, but Wikipedia is
+correct in stating that the original formulation required each
+philosopher to use two forks.)
+
+This homework has two parts.  In Part 1, you will implement a correct
+solution to the Dining Philosophers problem.  In Part 2, you will
+implement the naive solution to Dining Philosophers, which could
+deadlock.  You will then run the mcmini tool to display the deadlock.
+The mcmini tool is only good enough for a small number of threads and
+a small number of mutex operations.  But if you optionally want to try
+mcmini to also verify your Part 1 solution (not required), then try
+reducing the number of threads in Part 1 to three (but only for mcmini),
+when you use mcmini to verify it.
+
+======================
+PART 1: Dining Philosophers (full solution)
+
+You must use the mutex-based solution with the shared variables described
+in this homework.  The solution proposed here has been carefully developed
+to help you increase your intuitive understanding of mutexes.
+
+The solution required here is _different_ from the ones given in the
+Wikipedia article.  You will _only_ get credit for using the solution
+described here.  No other type of solution will be accepted.
+
+The basic idea of this solution is that if we cannot acquire two
+chopsticks, then we should release all of our resources, before we call
+pthread_mutex_lock() and block.  This will prevent deadlock, since now
+some other philosopher thread can go ahead and acquire two chopsticks
+while we re blocked.
+
+For this homework, we assume six dining philosophers, represented by
+'thread 1', 'thread 2', 'thread 3', ....  We also assume six resources
+(i.e., the chopsticks, or forks): resource_A, resource_B, ... ,resource_F.
+In order to "eat",
+ * thread 1 must acquire resource_A and resource_B
+ * thread 2 must acquire resource_B and resource_C
+ * thread 3 must acquire resource_C and resource_D
+ *  [  and so on ]
+ * thread 6 must acquire resource_F and resource_A
+
+To do this in the code, we declare two mutexes for each thread and
+one shared variable for each thread.
+  pthread_mutex_t resource[] = {...};
+  pthread_mutex_t resource_try[] = {...};
+  int have_resource_A = have_resource_C = have_resource_C = 0;
+
+We wish to avoid deadlock.  Deadlock could occur, for example,
+if the threads executed the following code:
+  thread 1:  pthread_mutex_lock(resource_A);
+             pthread_mutex_lock(resource_B);
+  thread 2:  pthread_mutex_lock(resource_B);
+             pthread_mutex_lock(resource_C);
+  thread 3:  pthread_mutex_lock(resource_C);
+             pthread_mutex_lock(resource_D);
+  thread 4:  pthread_mutex_lock(resource_D);
+             pthread_mutex_lock(resource_E);
+  thread 5:  pthread_mutex_lock(resource_E);
+             pthread_mutex_lock(resource_F);
+  thread F:  pthread_mutex_lock(resource_F);
+             pthread_mutex_lock(resource_A);
+(If you don't see why this might lead to deadlock, please ask.)
+
+In order to avoid such a deadlock, each thread will actually execute:
+  thread 1:  pthread_mutex_lock( resource_A_try );
+             if (have_resource_A == 0) {have_resource_A = 1;} // acquired
+             pthread_mutex_unlock( resource_A_try );
+             pthread_mutex_lock( resource_B_try );
+             if (have_resource_B == 0) {have_resource_B = 1;} // acquired
+             pthread_mutex_unlock( resource_B_try );
+             if (have_resource_A && have_resource_B) {
+               pthread_mutex_lock( resource_A);
+               pthread_mutex_lock( resource_B);
+               // Success:  resources acquired
+             } else {
+               // Fail:  resources not acquired; wait a little, and try again
+             }
+  threads 2 and 3: similar code
+
+Effectively, the variables have_resource_A and have_resource_B act
+as guard variables.  We should only set them to 1 (owned by our thread)
+if no one else is using them.  So, we use the locks resource_A_try
+and resource_B_try to to safely test and modify have_resource_A
+and have_resource_B.  Of course, there is a danger of deadlock
+with the mutex locks resource_A_try and resource_B_try.  So, we
+only hold these mutex locks briefly, to avoid deadlock.
+
+Furthermore, in your code, if a thread (a philosopher) succeeds in changing
+a resourse (e.g., have_resource_A) from 0 to 1, then this thread should
+remember that it owns resource A.  To do this, your code should create
+a local variable, such as i_own_resource_A.  The local variable should
+be initialized to 0 (the thread does not own resource A initially).
+So, the earlier code should now be replaced by the code below:
+
+  thread 1:  // These are local variables, private to this thread:
+             int i_own_resource_A = 0, i_own_resource_B = 0;
+             // Deadlock impossible here, since we lock and unlock:
+             pthread_mutex_lock( resource_A_try );
+             if (have_resource_A == 0) {
+               have_resource_A = 1; i_own_resource_A = 1; // acquired
+             }
+             pthread_mutex_unlock( resource_A_try );
+
+             // Deadlock impossible here, since we lock and unlock:
+             pthread_mutex_lock( resource_B_try );
+             if (have_resource_B == 0) {
+               have_resource_B = 1; i_own_resource_B = 1; // acquired
+             }
+             pthread_mutex_unlock( resource_B_try );
+
+             if (i_own_resource_A && i_own_resource_B) {
+               // Deadlock would be possible here, but no other thread
+               // should believe they own both A and B.
+               pthread_mutex_lock( resource_A);
+               pthread_mutex_lock( resource_B);
+               // Success:  resources acquired
+             } else {
+               // Fail:  resources not acquired; wait a little, and try again
+             }
+  threads 2 and 3: similar code
+
+Once you have your initial functions working for safely acquiring the
+resources, without deadlock, you will use this to build a solution
+based on:
+  try; if failure then back off and wait; try again
+We could use a random back-off time, as is done in networking.
+For simplicity, we will simply have thread 1 wait for 2 seconds, thread 2
+will wait for 3 seconds, and thread 3 will wait for 5 seconds.
+
+Your top-level code should create the six threads and later delete
+them using pthread_create and pthread_join.  You will also want to pass
+into the start function of each thread an argument indicating which
+philosopher this is, and which resources it uses.  To get a good start,
+please read mc-philosophers-deadlock.c closely.  In particular, please
+look at how pthread_create() and pthread_join() are called inside:
+  mc-philosophers-deadlock.c:main()
+Please also look at the first two or three lines of:
+  mc-philosophers-deadlock.c:philosopher_doit().
+alongside the calls to pthread_create(), to see how arguments are passed
+to a thread's start function.  (And 'man pthread_create' helps, of course.)
+And look at the argument itself:
+  mc-philosophers-deadlock.c:struct forks { ... } forks[NUM_THREADS]
+
+For convenience, you may also want to create the following global arrays:
+  char *thread_name[6] = {"Thread 1", "Thread 2", "Thread 3", "Thread 4",
+                          "Thread 5", "Thread 6"};
+  char *resource_name[6] = {"Resource A", "Resource B", "Resource C",
+                            "Resource D", "Resource E", "Resource F"};
+  pthread_mutex_t resource[6] =
+    {PTHREAD_MUTEX_INITIALIZER,PTHREAD_MUTEX_INITIALIZER,
+     PTHREAD_MUTEX_INITIALIZER,PTHREAD_MUTEX_INITIALIZER,
+     PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER};
+  pthread_mutex_t resource_try[6] =
+    {PTHREAD_MUTEX_INITIALIZER,PTHREAD_MUTEX_INITIALIZER,
+     PTHREAD_MUTEX_INITIALIZER,PTHREAD_MUTEX_INITIALIZER,
+     PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER};
+  int have_resource[6] = {0}; // C automatically extends the array to all 0's.
+  int eat_retry_time[] = {2, 3, 5, 7, 11, 13};
+This allows you to refer to a resource by its index (0, 1, 2, or 3).
+(Recall that mutexes must be declared globally so that they can be
+ shared among threads.  What goes wrong if they are local variables?)
+
+The next code has each philosopher do:
+  eat, think, eat, think, ...
+
+To implement this, each thread must include a loop of the form:
+  int i = 5; // 5 iterations
+  time_t time_start, time_end;
+  time(&time_start);
+  for (i = 0; i < 5; i++) {
+    think(); // calls 'sleep(2)'; all philosophers think only for 2 seconds.
+    printf("%s thought!\n", thread_name[1]); // This example code for thread 1.
+    prepare_to_eat(0, 1); // if failure, call sleep for eat_retry_time[0],
+        // internally, in the case of thread_name[0]], and then try again.
+    // This call to pthread_mutex_trylock is my code for testing that
+    // your program is working correctly.  -- Prof. Cooperman
+    if (pthread_mutex_trylock(&resource[0]) == 0) {
+      printf("*** ERROR:  %s should be locked; but we locked it again.\n",
+             resource_name[0]); // resource_name[0] is "Resource_A"
+      exit(1);
+    }
+    if (pthread_mutex_trylock(&resource[1]) == 0) {
+      printf("*** ERROR:  %s should be locked; but we locked it again.\n",
+             resource_name[1]); // resource_name[0] is "Resource_B"
+      exit(1);
+    }
+    sleep(2);
+    printf("%s ate (using %s and %s)!\n",
+      thread_name[0], resource_name[0], resource_name[1]); // Example for thr 1.
+    finish_eating(0, 1); // release mutex locks
+  }
+  time(&time_end);
+  printf("*** %s finished in %d seconds.\n",
+    thread_name[0], time_end - time_start);
+(I've written the code for Thread 1 (thread_name[0]), using resource[0]
+ and resource[1].  You can replace '0' and '1' by argument variables, and
+ then write a general function that passes in those arguments.  Then you
+ can re-use this same function in the code for threads 1, 2, 3, 4, 5, 6.)
+
+*** IMPORTANT (NO BUSY WAITING):  No _busy waiting_ is allowed!  If you
+      try to acquire a resource and you fail, you must sleep before
+      trying again to acquire the resource.  This is important, since
+      we do not want to consume a lot of CPU time just to wait until it
+      is our turn to use the resource.
+
+*** IMPORTANT (PERFORMANCE):  Your program must finish after about a
+      minute or two.  If it takes much longer, then you may have a
+      performance bug in which only one thread executes at a time.
+      You may need to run your code on a computer with at least 6 cores,
+      such as the Khoury login computer, to see the correct performance.
+
+======================
+PART 2: Dining Philosophers (using mcmini model checker)
+
+  Part 2 is intended for a first experience with model checking.
+  It is intended, on purpose, to be easy.  But please do play with this
+  model-checking tool.  As described in class, model checking is a
+  critical tool for testing.  We have unit tests, functional tests,
+  and so on.  But for multi-threaded programs, these traditional
+  tests fail miserably.  One important solution for multi-threaded
+  programs is model checking.
+
+  1. Unpack the mcmini.tgz tarball found in the course directory.
+       tar zxvf mcmini.tgz
+       cd mcmini
+  2. Read the "naive" code in test/mc-philosophers-deadlock.c.
+     Observe that there is a clear deadlock possible.
+  3. Make the executabe:  (cd test && make mc-philosophers-deadlock)
+     Run the executable:   ./test/mc-philosophers-deadlock
+     ( Observe that this succeeds on login at Khoury, with all three
+       philosophers managing to eat.  We don't see any deadlock. )
+  4. Run:  ./mcmini --verbose test/mc-philosophers-deadlock
+     Observe that this produces a deadlock:  1, 2, 3
+     This means that thread 1 runs until a pthread call.
+     Then thread 2 runs until a pthread call.
+     Then thread 3 runs until a pthread call.
+     Then there is deadlock.  If any thread tries to execute further,
+       it is blocked at a mutex.
+
+  Then (based on what you see i McMini), please include in your text
+  file a brief description in which you explain in plain English which
+  resources are held by which threads, and for each thread, what mutex
+  will it block at next if it tries to continue executing.
+
+======================
+PART 3: Dining Philosophers (using semaphores)
+
+The mutex solution to the dining philosophers had the disadvantage
+of either potential deadlock or the use of random back-offs.
+But random back-offs force a philosopher to be idle during the back-off.
+
+The problem of the dining philosophers occurs only when all
+philosophers try to eat at the same time.  So, we can avoid
+deadlock if we can guarantee that for N philosophers, no more
+than N-1 philosophers are allowed to dine at the same time.
+
+Add to the dining philosophers program some code that adds a
+semaphore, 'sem_t sem_dining;'.  It will have the English meaning
+of the number of philosophers allowed to dine in parallel.
+Since there are three philosophers, we should initialize
+'sem_dining' to 2.  Before a philosopher can try to grab
+any fork, it must first do a sem_wait on 'sem_dining', and it
+must call 'sem_post' when it is done dining.
+
+YOU DON'T NEED TO DO THIS:
+  Verify with 'mcmini' that your solution is correct.
+(McMini is not yet robust neough to run reliably on semaphores.)
+
+======================
+PART 4: Dining Philosophers (using condition variables)
+
+The semaphore solution to the dining philosophers had the disadvantage
+that when N-1 philosophers tried to dine in parallel, with each
+philosopher initially holding the left fork, then only
+one philosopher (the first one in the chain) can dine.
+Of course, the problem is that as soon as one philosopher dines,
+the adjacent one may try to dine and be forced to wait while
+still holding a fork.  We can fix that if the adjacent diner
+releases all forks and waits.  Let's use condition variables
+to implement that solution.
+
+Write a dining philosophers program using condition variables.
+If both forks are available, then the philosopher can acquire
+the lock.  If zero or one forks are available, then the
+philosopher should call pthread_cond_wait().  When a thread
+releases the lock, it should call pthread_cond_broadcast()
+to wake up all waiting threads.
+
+NOTE:  This solution could be slightly optimized by using
+pthread_cond_signal instead of pthread_cond_broadcast.
+But that would require creating a separate condition variable
+for each thread.  For simplicity, we will assume a single
+condition variable and the use of pthread_cond_broadcast
+in this solution.
+
+======================
+PART 5: Optimized Reader-Writer
+
+Write an optimized reader-writer program in which you use
+two condition variables:  one for readers and one for writers.
+Assume two writers and three readers.  Assume writer priority.
+If there are readers and writers both waiting, then use
+pthread_cond_signal() to signal to a waiting writer.
+However, you should do this only if there are no active readers or
+writers (no readers or writers who have acquired the right
+to execute).  Similarly, if there is a waiting reader and no
+waiting writers, then signal to a reader.
+
+Upon acquiring a lock, each reader and writer should write a unique
+id for that thread, whether it is a reader or writer, and that it
+is acquiring the lock.  Upon releasing a lock, the reader or writer
+must write the same information, except that it is releasing the lock.
+
+
+    For Part 5, the keys are that you will need:
+ * two condition variables
+ * one mutex (as usual)
+ * and additional guard variables to track the state individually for
+     the readers and the writers.
+
+======================
+HAND IN:  hw4
+By the due date, you will have to submit these things in your .tar.gz file:
+ 1. your source code (e.g., part1-philosophers.c, part5-reader-writer.c)
+ 2. a working Makefile
+ 3. the output of running your program on a computer with at least
+      6 cores (e.g., Khoury's login), to show correct performance.
+      An easy way to do this might be:  ./philosophers > output.txt
+      If you'd like to monitor the progress, try:
+        ./philosophers | tee - > output.txt
+ 5. part2-output-mcmini.txt (the output for Part 2, including both the mcmini
+      output.
+ 6. a text file for Part 2, explaining why the trace leads to deadlock.
+
+Place all of your files in a subdirectory, hw4.
+Then:
+  tar cvf hw4.tar ./hw4
+  gzip hw4.tar
+Or simply:
+  tar zcvf hw4.tar.gz ./hw4
+Then:
+  /course/cs7600/homework/submit-cs7600-hw4 hw4.tar.gz

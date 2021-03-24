@@ -1,0 +1,130 @@
+McMini: Model checker is starting.
+        (Asterisk at end of TRACE RESULT means to backtrack
+         from current trace level at the next iteration.)
+
+NEW TRACE: 0, 
+  TRACE RESULT: iter: 1, childpid: 75908, exit status: EXIT_ignore*
+
+NEW TRACE: 1, 
+  TRACE RESULT: iter: 2, childpid: 75913, exit status: EXIT_live
+
+NEW TRACE: 1, 0, 
+  TRACE RESULT: iter: 3, childpid: 75917, exit status: EXIT_ignore
+
+NEW TRACE: 1, 1, 
+Philosopher 0 just ate.
+  TRACE RESULT: iter: 4, childpid: 75921, exit status: EXIT_live
+
+NEW TRACE: 1, 2, 
+  TRACE RESULT: iter: 5, childpid: 75925, exit status: EXIT_live
+
+NEW TRACE: 1, 3, 
+  TRACE RESULT: iter: 6, childpid: 75929, exit status: EXIT_live*
+
+NEW TRACE: 1, 1, 0, 
+Philosopher 0 just ate.
+  TRACE RESULT: iter: 7, childpid: 75933, exit status: EXIT_ignore
+
+NEW TRACE: 1, 1, 1, 
+Philosopher 0 just ate.
+  TRACE RESULT: iter: 8, childpid: 75937, exit status: EXIT_live
+
+NEW TRACE: 1, 1, 2, 
+Philosopher 0 just ate.
+  TRACE RESULT: iter: 9, childpid: 75941, exit status: EXIT_blocked_at_mutex
+
+NEW TRACE: 1, 1, 3, 
+Philosopher 0 just ate.
+  TRACE RESULT: iter: 10, childpid: 75945, exit status: EXIT_live*
+
+NEW TRACE: 1, 2, 0, 
+  TRACE RESULT: iter: 11, childpid: 75949, exit status: EXIT_ignore
+
+NEW TRACE: 1, 2, 1, 
+  TRACE RESULT: iter: 12, childpid: 75953, exit status: EXIT_blocked_at_mutex
+
+NEW TRACE: 1, 2, 2, 
+Philosopher 1 just ate.
+  TRACE RESULT: iter: 13, childpid: 75957, exit status: EXIT_live
+
+NEW TRACE: 1, 2, 3, 
+  TRACE RESULT: iter: 14, childpid: 75962, exit status: EXIT_live*
+
+NEW TRACE: 1, 3, 0, 
+  TRACE RESULT: iter: 15, childpid: 75966, exit status: EXIT_ignore
+
+NEW TRACE: 1, 3, 1, 
+Philosopher 0 just ate.
+  TRACE RESULT: iter: 16, childpid: 75970, exit status: EXIT_live
+
+NEW TRACE: 1, 3, 2, 
+  TRACE RESULT: iter: 17, childpid: 75974, exit status: EXIT_live
+
+NEW TRACE: 1, 3, 3, 
+  TRACE RESULT: iter: 18, childpid: 75978, exit status: EXIT_blocked_at_mutex*
+
+NEW TRACE: 1, 1, 1, 0, 
+Philosopher 0 just ate.
+  TRACE RESULT: iter: 19, childpid: 75982, exit status: EXIT_ignore
+
+NEW TRACE: 1, 1, 1, 1, 
+Philosopher 0 just ate.
+  TRACE RESULT: iter: 20, childpid: 75986, exit status: EXIT_live
+
+NEW TRACE: 1, 1, 1, 2, 
+Philosopher 0 just ate.
+  TRACE RESULT: iter: 21, childpid: 75990, exit status: EXIT_blocked_at_mutex
+
+NEW TRACE: 1, 1, 1, 3, 
+Philosopher 0 just ate.
+  TRACE RESULT: iter: 22, childpid: 75994, exit status: EXIT_live*
+
+NEW TRACE: 1, 1, 3, 0, 
+Philosopher 0 just ate.
+  TRACE RESULT: iter: 23, childpid: 75998, exit status: EXIT_ignore
+
+NEW TRACE: 1, 1, 3, 1, 
+Philosopher 0 just ate.
+  TRACE RESULT: iter: 24, childpid: 76002, exit status: EXIT_live
+
+NEW TRACE: 1, 1, 3, 2, 
+Philosopher 0 just ate.
+  TRACE RESULT: iter: 25, childpid: 76006, exit status: EXIT_blocked_at_mutex
+
+NEW TRACE: 1, 1, 3, 3, 
+Philosopher 0 just ate.
+  TRACE RESULT: iter: 26, childpid: 76010, exit status: EXIT_blocked_at_mutex*
+
+NEW TRACE: 1, 2, 2, 0, 
+Philosopher 1 just ate.
+  TRACE RESULT: iter: 27, childpid: 76014, exit status: EXIT_ignore
+
+NEW TRACE: 1, 2, 2, 1, 
+Philosopher 1 just ate.
+  TRACE RESULT: iter: 28, childpid: 76018, exit status: EXIT_blocked_at_mutex
+
+NEW TRACE: 1, 2, 2, 2, 
+Philosopher 1 just ate.
+  TRACE RESULT: iter: 29, childpid: 76022, exit status: EXIT_live
+
+NEW TRACE: 1, 2, 2, 3, 
+Philosopher 1 just ate.
+  TRACE RESULT: iter: 30, childpid: 76026, exit status: EXIT_blocked_at_mutex*
+
+NEW TRACE: 1, 2, 3, 0, 
+  TRACE RESULT: iter: 31, childpid: 76030, exit status: EXIT_ignore
+
+NEW TRACE: 1, 2, 3, 1, 
+  TRACE RESULT: iter: 32, childpid: 76034, exit status: EXIT_blocked_at_mutex
+
+NEW TRACE: 1, 2, 3, 2, 
+  TRACE RESULT: iter: 33, childpid: 76038, exit status: EXIT_blocked_at_mutex
+
+NEW TRACE: 1, 2, 3, 3, 
+  TRACE RESULT: iter: 34, childpid: 76042, exit status: EXIT_blocked_at_mutex*
+
+                    *****************
+                    *** DEADLOCK! ***
+                    *****************
+    *** TRACE THAT EXHIBITS DEADLOCK: 1, 2, 3, 
+McMini: Model checker is finished.
