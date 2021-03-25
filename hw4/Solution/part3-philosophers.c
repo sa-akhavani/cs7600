@@ -1,5 +1,3 @@
-// Naive dining philosophers solution, which leads to deadlock.
-
 #include <stdio.h>
 #include <unistd.h>
 #include <pthread.h>
@@ -17,9 +15,9 @@ struct forks {
 } forks[NUM_THREADS];
 
 void * philosopher_doit(void *forks_arg) {
+  struct forks *forks = forks_arg;
   //sem_wait before grabbing forks
   sem_wait(&sem_dining);
-  struct forks *forks = forks_arg;
   pthread_mutex_lock(forks->left_fork);
   pthread_mutex_lock(forks->right_fork);
   sleep(1);
