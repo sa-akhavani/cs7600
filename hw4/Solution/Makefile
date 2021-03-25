@@ -13,3 +13,6 @@ part4-philosophers: part4-philosophers.c
 
 part5-reader-writer: part5-reader-writer.c
 	gcc ${CFLAGS} -o $@ $<
+
+clean:
+	rm part1-philosophers part3-philosophers part4-philosophers part5-reader-writer

@@ -1,0 +1,15 @@
+-bash-4.2$ ./part1-philosophers 
+Thread 2 thought!
+Thread 4 thought!
+Thread 1 thought!
+Failed! Sleeping again!
+Thread 5 thought!
+Failed! Sleeping again!
+Thread 6 thought!
+Failed! Sleeping again!
+Thread 3 thought!
+Failed! Sleeping again!
+Thread 4 ate (using Resource D and Resource E)!
+Thread 2 ate (using Resource B and Resource C)!
+*** ERROR:  Resource A should be locked; but we locked it again.
+-bash-4.2$ 
