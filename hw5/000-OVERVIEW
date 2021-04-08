@@ -1,0 +1,79 @@
+	OVERVIEW of CHECKPOINT-RESTART
+
+This document provides an overview of the homework.  Some of the details
+in this overview are clarified in 000-README, and in some cases, by
+small example programs that illustrate a systems technique.
+Therefore, the recommended reading order is:
+
+Recommended reading order:
+  I.   OVERVIEW - conceptual overview
+  II.  000-README - step-by-step description of what to implement and how
+  III. BACKGROUND - example programs that illustrate the systems techniques used
+However, if something is unclear, feel free to stop in the middle
+(for example, in the middle of OVERVIEW), and read an appropriate
+section for details (e.g., in 000-README.)
+
+====
+The rest of this document has three parts, with three different views
+of the code:
+A. SPATIAL VIEW
+B. TEMPORAL VIEW
+C. DEBUGGING VIEW
+
+A. SPATIAL (LEXICAL) VIEW:
+libckpt.so:
+  constructor
+    signal (register signal handler for SIGUSR2)
+  signal handler
+    sigsetjmp => writes a new sigjmp_buf
+    save sigjmp_buf (save registers)
+    save /proc/self/maps
+restart:
+  See 000-README for details of this program.
+myckpt:  Generated when checkpointing
+
+B. TEMPORAL VIEW:
+Phase 1:
+  constructor called
+    stack:  constructor call frame
+    constructor returns (does not call exit(0))
+Phase 2:
+  main called
+    stack:  main -> other functions of user program
+Phase 3 (checkpoint):
+  SIGUSR2 is sent
+    stack: main->other user fnc's-><signal handler called> -> my_signal_handler
+		[ <signal handler called> is a call frame added by kernel ]
+    my_signal_handler [SEE:  SPATIAL VIEW: libckpt.so:  signal handler)
+      sigsetjmp => writes a new sigjmp_buf
+      save sigjmp_buf (save registers)
+      save /proc/self/maps
+Phase 4 (restart):
+  restart program
+    restore memory (restoring original /proc/self/maps in ckpt image)
+      mmap() with extra PROT_WRITE, read()
+    restore sigjmp_buf from ckpt image file (which contains the old registers)
+    siglongjmp is called, but it returns from sigsetjmp (see man page)
+      [ This changes $pc, $sp, etc. ]
+Phase 5 (restart):
+  The program counter changes from the restart program to the original
+                           user program because we called siglongjmp
+  siglongjmp is called, but it returns from sigsetjmp  (see man page)
+  When sigsetjmp returns, it returns 0 if called directly, but it
+			returns 1 if called from siglongjmp (see man page)
+  We returned from sigsetjmp into the signal handler function of Phase 3.
+  signal_handler(): int rc = sigsetjmp(sigjmp_buf);
+                    if (rc == 0) // This is checkpoint, Phase 3
+                    if (rc != 0) // This is restart, Phase 5
+                    if this is restart (Phase 5), then:
+                      return from signal handler immediately
+
+C. DEBUGGING VIEW:
+GDB:  break my_constructor (Phase 1)
+      break main (Phase 2)
+      break my_signal_handler (Phase 3)
+      ./restart (Phase 4)
+      To get from Phase 4 to Phase 5 under GDB, use '(gdb) si' when
+        you start to execute siglongjmp().
+        [ In fact, siglongjmp is written in assembly. ]
+        ADVANCED TIPS FOR DEBUGGING:  DEBUGGING AT ASSEMBLY LEVEL with GDB

@@ -1,0 +1,118 @@
+                       BACKGROUND AND EXAMPLE FILES
+                 (to be used with the checkpointing homework)
+
+Copyright (c) Gene Cooperman, 2021
+This may be copied, modified, and re-distributed (and additional
+copyrights added) as long as this copyright notice remains.
+
+You will need to write code for checkpointing and restarting.
+The programs supplied here provide detailed examples of each
+of the systems techniques that you will need.
+1.  You will need to discover the addresses of each memory segment
+    in the current process, so that you can save them to a file.
+    The file proc-self-maps.c shows how to discover the memory segments.
+    As a quick example, try 'cat /proc/self/maps' on the Linux command line.
+
+2.  You will need to save each segment (for example, the text segment)
+    to a file, and then restore it to memory.  The file
+    save-restore-memory.c shows how to save the code for a function 'fnc()'
+    and restore it at a different memory location.  In fact, your
+    job will be easier.  You just need to restore it at the
+    original memory address.
+
+3.  You will need to use LD_PRELOAD to load in your own libckpt.so
+    library.  It will hold a constructor function that creates
+    a signal handler even before the target application's main
+    routine is called.  You can then send a signal to this application,
+    and the code in the signal handler should then save the program
+    to a checkpoint file.  (For consistency, let's always save
+    to a file called 'mycheckpoint'.)  Furthermore, the signal
+    handler should save the context (value of all registers)
+    using 'sigsetjmp()', so that after restart, we can restore
+    all of the registers (including $pc and $sp.  The techniques
+    of LD_PRELOAD, signal handler, and sigsetjmp/siglongjmp are all
+    demonstrated in test5, below.  (For example,
+    './test5 primes-test')  You can build up to understanding this
+    program by first executing test1, test2, etc.
+
+=======================================================
+proc-self-maps.c:  In order to checkpoint a process, you will need
+        to discover the addresses of all the memory segments in that
+        process.  This file includes a function, proc_self_maps(),
+        that you can use in your homework to find all memory segments.
+        You can test it in standalone mode via:
+          make proc-self-maps
+          ./proc-self-maps
+
+=======================================================
+save-restore-memory.c:  When you checkpoint and restore a file,
+       you will need to save the code from memory to a file, and
+       then later restore it back to a different process.
+       This program demonstrates how to do that, using 'mmap()'.
+
+=======================================================
+In this section, we show some tricks for "meta-programming" with C.
+Ultimately, transparent checkpointing is a form of meta-programming,
+in which we change the behavior of the target program so that it
+can checkpoint itself into a memory image.  In this section, we
+practice some meta-programming techniques that will be useful
+in creating a transparent checkpoint program.  A typical execution
+will be:  make all && ./testX ./primes-test
+     or:  make all && ./testX ./counting-test
+
+This distribution provides two target executables on which to test.
+They are primes-test.c and counting-test.c.  In general, you will do
+something like:
+  make all
+  ./primes-test 1234567891234567
+  ./test1 primes-test
+where you can replace test1 by any test number.  You can also replace
+primes-test by counting-test, in order to show that 'test*' is doing
+something extra, while not modifying the original target, *-test.
+
+test1:  The constructor prints that it exists
+
+test2:  The constructor asks for an integer and uses that, ignoring any
+        integer on the command line.  The constructor does this by
+        directly calling main().  It then calls exit() to prevent
+        the original main() on the command line from being invoked
+        with the original integer from the command line.
+
+test3:  Similar to test2, but after executing the target, control returns
+        to the constructor and it asks what integer to test next.
+        It never exits.  (But you can suspend with '^Z' and 'kill -9 %+'.)
+        It does this by re-defining exit(), which is implicitly
+        called by main() when the process is about to exit.
+
+test4:  Similar to test3, but instead of re-defining exit(), this
+        version defines a SIGINT signal handler for '^C'.  If you
+        do not interrupt, the target will run once.  If you interrupt,
+        you will have the opportunity to run the target again with
+        a different integer.  However, if you interrupt a second time,
+        that ^C will be kept pending until the previous execution
+        of the target finishes and the previous invocation of the
+        signal handler finishes.
+
+test5:  test4 had a _BUG_.  If you interrupted twice, the second
+        interrupt would leave a pending SIGINT until the first
+        execution had finished.  This was especially bad when
+        you choose a negative number for primes-test.c, since this
+        caused primes-test to test 10,000 integers, taking appreciable time.
+          This time, we will still use a SIGINT signal handler, but the
+        signal handler will do a 'siglongjmp()' back to the beginning of
+        the constructor (which appeared even before 'main()').  This
+        was added to the stack before the original 'main()' had started
+        executing.  So, the original 'main()' is no longer on the stack.
+        Now we can immediately gain control during a second ^C.
+            This version will also turn out to be the most flexible
+        strategy for checkpointing.
+
+==========================================================================
+DIGGING DEEPER (not required for this homework; only for the curious):
+[ THIS SECTION WILL BE REVISED ]
+
+EXTRA:  nm, nm -D, ldd, /proc/*/maps, lseek(), GDB, dlsym/RTLD_NEXT, readelf,
+        file, strings
+  http://www.goldsborough.me/c/low-level/kernel/2016/08/29/16-48-53-the_-ld_preload-_trick/
+  The LD_PRELOAD trick, by Peter Goldsborough
+  The analog for statically linked executables: ld --wrap-SYMBOL
