@@ -5,9 +5,9 @@ CFLAGS=-g3 -O0
 # ================Added Parts=================
 # run make hw5 then make check to test the code.
 
-hw5: checkpoint restart readckpt check
+hw5: checkpoint restart readckpt check ckpt libckpt.so hello
 
-checkpoint: ckpt.c
+checkpoint: checkpoint.c
 	${CC} ${CFLAGS} -o $@ $<
 
 readckpt: readckpt.c
@@ -19,15 +19,16 @@ restart: restart.c
 hello: hello.c
 	${CC} ${CFLAGS} -rdynamic -o $@ $<
 
-libckpt.so: libckpt.o
-	${CC} ${CFLAGS} -shared -fPIC -o $@ $<
-libckpt.o: libckpt.c
+
+ckpt.o: ckpt.c
 	${CC} ${CFLAGS} -fPIC -c $<
+libckpt.so: ckpt.o
+	${CC} ${CFLAGS} -shared -fPIC -o $@ $<
 
 
-check: checkpoint restart hello
+check: checkpoint restart hello libckpt.so
 	rm -f myckpt  # Remove any older 'myckpt' files
-	./checkpoint hello &
+	LD_PRELOAD=libckpt.so ./checkpoint hello &
 	sleep 2
 	echo Checkpointing ...
 	kill -12 `pgrep -n hello`
