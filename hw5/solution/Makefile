@@ -1,0 +1,87 @@
+CC=gcc
+CFLAGS=-g3 -O0
+
+# ============================================
+# ================Added Parts=================
+# run make hw5 then make check to test the code.
+
+hw5: checkpoint restart readckpt check
+
+checkpoint: ckpt.c
+	${CC} ${CFLAGS} -rdynamic -o $@ $<
+
+readckpt: readckpt.c
+	${CC} ${CFLAGS} -rdynamic -o $@ $<
+
+restart: restart.c
+	${CC} ${CFLAGS} -rdynamic -o $@ $<
+
+hello: hello.c
+	${CC} ${CFLAGS} -rdynamic -o $@ $<
+
+libckpt.so: libckpt.o
+	${CC} ${CFLAGS} -shared -fPIC -o $@ $<
+libckpt.o: libckpt.c
+	${CC} ${CFLAGS} -fPIC -c $<
+
+
+check: checkpoint restart hello
+	rm -f myckpt  # Remove any older 'myckpt' files
+	./checkpoint hello &
+	sleep 2
+	echo Checkpointing ...
+	kill -12 `pgrep -n hello`
+	sleep 2
+	echo Restarting ...
+	pkill -9 hello  # Kill your 'hello' program
+	./restart myckpt
+
+# ============================================
+# =============End of Added Parts=============
+
+
+
+all: primes-test counting-test test1 test2 test3 test4 test5 \
+     proc-self-maps save-restore-memory hw5
+
+#========================
+
+# https://stackoverflow.com/questions/36692315/what-exactly-does-rdynamic-do-and-when-exactly-is-it-needed
+primes-test: primes-test.c
+	${CC} ${CFLAGS} -rdynamic -o $@ $<
+
+counting-test: counting-test.c 
+	${CC} ${CFLAGS} -rdynamic -o $@ $<
+
+test: test.c
+	${CC} ${CFLAGS} -o $@ $<
+
+test%: test libconstructor%.so
+	cp $< $@
+
+# -fPIC required for shared libraries (.so)
+libconstructor%.so: constructor%.o
+	${CC} ${CFLAGS} -shared -fPIC -o $@ $<
+constructor%.o: constructor%.c
+	${CC} ${CFLAGS} -fPIC -c $<
+
+#========================
+proc-self-maps: proc-self-maps.c
+	${CC} ${CFLAGS} -DSTANDALONE -o $@ $<
+
+#========================
+save-restore-memory: save-restore-memory.c
+	${CC} ${CFLAGS} -o $@ $<
+
+#========================
+
+clean:
+	rm -f a.out primes-test counting-test
+	rm -f libconstructor?.so constructor?.o test? test
+	rm -f proc-self-maps save-restore-memory save-restore.dat
+
+dist: clean
+	dir=`basename $$PWD` && cd .. && tar czvf $$dir.tar.gz ./$$dir
+	dir=`basename $$PWD` && ls -l ../$$dir.tar.gz
+
+.PRECIOUS: libconstructor%.so constructor%.o
