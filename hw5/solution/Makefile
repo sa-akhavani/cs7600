@@ -8,13 +8,13 @@ CFLAGS=-g3 -O0
 hw5: checkpoint restart readckpt check
 
 checkpoint: ckpt.c
-	${CC} ${CFLAGS} -rdynamic -o $@ $<
+	${CC} ${CFLAGS} -o $@ $<
 
 readckpt: readckpt.c
-	${CC} ${CFLAGS} -rdynamic -o $@ $<
+	${CC} ${CFLAGS} -o $@ $<
 
 restart: restart.c
-	${CC} ${CFLAGS} -rdynamic -o $@ $<
+	${CC} ${CFLAGS} -o $@ $<
 
 hello: hello.c
 	${CC} ${CFLAGS} -rdynamic -o $@ $<
