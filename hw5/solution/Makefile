@@ -17,7 +17,7 @@ restart: restart.c
 	${CC} ${CFLAGS} -o $@ $<
 
 hello: hello.c
-	${CC} ${CFLAGS} -rdynamic -o $@ $<
+	${CC} ${CFLAGS} -o $@ $<
 
 
 ckpt.o: ckpt.c
@@ -28,7 +28,7 @@ libckpt.so: ckpt.o
 
 check: checkpoint restart hello libckpt.so
 	rm -f myckpt  # Remove any older 'myckpt' files
-	LD_PRELOAD=libckpt.so ./checkpoint hello &
+	./checkpoint hello &
 	sleep 2
 	echo Checkpointing ...
 	kill -12 `pgrep -n hello`
