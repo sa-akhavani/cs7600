@@ -5,7 +5,7 @@ CFLAGS=-g3 -O0
 # ================Added Parts=================
 # run make hw5 then make check to test the code.
 
-hw5: checkpoint restart readckpt check ckpt libckpt.so hello
+hw5: checkpoint restart readckpt hello ckpt libckpt.so
 
 checkpoint: checkpoint.c
 	${CC} ${CFLAGS} -o $@ $<
@@ -19,12 +19,10 @@ restart: restart.c
 hello: hello.c
 	${CC} ${CFLAGS} -o $@ $<
 
-
-ckpt.o: ckpt.c
-	${CC} ${CFLAGS} -fPIC -c $<
-libckpt.so: ckpt.o
+ckpt: ckpt.c
+	${CC} ${CFLAGS} -fPIC -c -o $@ $<
+libckpt.so: ckpt
 	${CC} ${CFLAGS} -shared -fPIC -o $@ $<
-
 
 check: checkpoint restart hello libckpt.so
 	rm -f myckpt  # Remove any older 'myckpt' files
@@ -80,6 +78,7 @@ clean:
 	rm -f a.out primes-test counting-test
 	rm -f libconstructor?.so constructor?.o test? test
 	rm -f proc-self-maps save-restore-memory save-restore.dat
+	rm -f checkpoint ckpt hello readckpt restart libckpt.so
 
 dist: clean
 	dir=`basename $$PWD` && cd .. && tar czvf $$dir.tar.gz ./$$dir
