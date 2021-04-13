@@ -7,6 +7,9 @@ CFLAGS=-g3 -O0
 
 hw5: checkpoint restart readckpt hello ckpt libckpt.so
 
+testsave: testsave.c
+	${CC} ${CFLAGS} -DSTANDALONE -o $@ $<
+
 checkpoint: checkpoint.c
 	${CC} ${CFLAGS} -o $@ $<
 

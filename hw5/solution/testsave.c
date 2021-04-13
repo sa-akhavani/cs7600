@@ -14,6 +14,7 @@ void my_constructor();
 static int is_in_signal_handler = 0;
 
 #define NAME_LEN 80
+#define HEADER_LEN 
 
 struct ckpt_segment {
   void *start;
@@ -41,12 +42,12 @@ void save_header(struct ckpt_segment segment_header, int fd) {
   char buf[200];
 
   if (segment_header.is_register_context) {
-    sprintf(buf, "iscontext:%d|start:NULL|end:NULL|rwxp:----|datasize:%d|name:NULL", 
+    sprintf(buf, "%d|NULL|NULL|----|%d|NULL", 
         segment_header.is_register_context, segment_header.data_size);
 
   } else {
         int data_size = segment_header.end - segment_header.start + 1;
-        sprintf(buf, "iscontext:%d|start:%p|end:%p|rwxp:%c%c%c%c|datasize:%d|name:%s", 
+        sprintf(buf, "%d|%p|%p|%c%c%c%c|%d|%s", 
             segment_header.is_register_context, segment_header.start, segment_header.end, 
             segment_header.rwxp[0], segment_header.rwxp[1], segment_header.rwxp[2], segment_header.rwxp[3], 
             data_size, segment_header.name);
@@ -102,20 +103,19 @@ void save_into_checkpoint_file(struct ckpt_segment proc_maps[], struct ckpt_segm
       continue;
     }
 
-    int data_size = proc_maps[i].end - proc_maps[i].start + 1;
     save_header(proc_maps[i], fd);
-
     // print new line after each segment
     save_newline(fd);
-
-    save(fd, proc_maps[i].start, data_size);
-
+    int data_size = proc_maps[i].end - proc_maps[i].start + 1;
+    printf("%d\n", data_size);
+    save(fd, &proc_maps[i].start, data_size);
     // print new line after each segment
     save_newline(fd);
   }
 
   close(fd);
 }
+
 
 // Returns 0 on success
 int match_one_line(int proc_maps_fd,
@@ -169,11 +169,7 @@ int proc_self_maps(struct ckpt_segment proc_maps[]) {
 
 
 
-// Signal Handler
-void signal_handler(int signal) {
-  is_in_signal_handler = 1;
-  fprintf(stderr, "\n\n*** IN SIGNAL HANDLER. CHECKPOINTING:\n");
-
+void main() {
   // Save Context
   ucontext_t context;  // A context includes the register values
   static int is_restart; // static local variables are stored in data segment
@@ -193,7 +189,7 @@ void signal_handler(int signal) {
   // Read /proc/self/maps
   struct ckpt_segment proc_maps[1000];
   assert( proc_self_maps(proc_maps) == 0 );
-  assert( proc_self_maps(proc_maps) == 0 ); // proc_self_maps called twice
+//   assert( proc_self_maps(proc_maps) == 0 ); // proc_self_maps called twice
   
 
   // saving each memory segment into mycckpt
@@ -202,28 +198,12 @@ void signal_handler(int signal) {
 
 
   // Debugging
-  int i = 0;
-  for (i = 0; proc_maps[i].start != NULL; i++) {
-    printf("%s (%c%c%c)\n"
-           "  Address-range: %p - %p\n",
-           proc_maps[i].name,
-           proc_maps[i].rwxp[0], proc_maps[i].rwxp[1], proc_maps[i].rwxp[2],
-           proc_maps[i].start, proc_maps[i].end);
-  }
-
-  my_constructor();
-  is_in_signal_handler = 0;
-}
-
-
-
-void __attribute__((constructor))
-my_constructor() {
-    // signal handler
-    signal(SIGUSR2, &signal_handler);
-
-    fprintf(stderr, "*************************************\n"
-    "***  We are running on top of the program ***\n"
-    "*************************************\n");
-
+//   int i = 0;
+//   for (i = 0; proc_maps[i].start != NULL; i++) {
+//     printf("%s (%c%c%c)\n"
+//            "  Address-range: %p - %p\n",
+//            proc_maps[i].name,
+//            proc_maps[i].rwxp[0], proc_maps[i].rwxp[1], proc_maps[i].rwxp[2],
+//            proc_maps[i].start, proc_maps[i].end);
+//   }
 }
