@@ -25,7 +25,8 @@ struct ckpt_segment {
 
 // Same process that is done in reading /proc/self/maps but this time for myckpt file
 // This is the format:
-// iscontext:%d|start:NULL|end:NULL|rwxp:----|datasize:%d|name:NULL,
+// iscontext|start|end|rwxp|datasize|name
+// ,
 int read_one_line(int fd, struct ckpt_segment *ckpt_segment, char *filename) {
     unsigned long int start, end;
     char rwxp[4];
@@ -34,32 +35,45 @@ int read_one_line(int fd, struct ckpt_segment *ckpt_segment, char *filename) {
     char tmp[10];
     int tmp_stdin = dup(0);
     int rc;
+    char data[1000];
     dup2(fd, 0);
-    if (in_data_section == 0) {
-    rc = scanf("%d|%lx|%lx|%4c|%d|%s\n,\n",
-        &is_register_context, &start, &end, rwxp, &data_size, filename);
+    // We are reading a header section
+    if (!in_data_section) {
+        rc = scanf("%d|%lx|%lx|%4c|%d|%s\n,\n",
+            &is_register_context, &start, &end, rwxp, &data_size, filename);
+        assert(fseek(stdin, 0, SEEK_CUR) == 0);
+        printf("is_register:%d, start:%ld, end:%ld, rwxp:%c%c%c%c, size:%d, filename:%s\n", is_register_context, start, end, rwxp[0], rwxp[1],rwxp[2],rwxp[3], data_size, filename);
+
+    } else { // We are reading a data section
+        rc = scanf("%[^\n]\n,\n", data);
+        printf("data: --%s--\n", data);
+        assert(fseek(stdin, 0, SEEK_CUR) == 0);
     }
-    assert(fseek(stdin, 0, SEEK_CUR) == 0);
-    dup2(tmp_stdin, 0); // Restore original stdin; proc_maps_fd offset was advanced.
+    dup2(tmp_stdin, 0); // Restore original stdin; file offset was advanced.
     close(tmp_stdin);
     
-    if (in_data_section) {
-        if (rc == 0) {
-            // this is not the header
-            return -1;
-        }
-        
-        if (rc == EOF) {
-            return EOF;
-        }
+    printf("RCC:%d\n", rc);
+    if (rc == 0) {
+        printf("RC IS ZEROOOOOOOOOOOOOOOOOOOOOOOOOOOOOO\n");
+        return 0;
+    }
+    if (rc == EOF) {
+        printf("EOF!\n");
+        return EOF;
+    }
 
-        ckpt_segment -> start = (void *)start;
-        ckpt_segment -> end = (void *)end;
+    if (!in_data_section) {
         ckpt_segment->is_register_context = is_register_context;
         ckpt_segment->data_size = data_size;
-        strncpy(ckpt_segment->name, filename, NAME_LEN-1);
-        memcpy(ckpt_segment->rwxp, rwxp, 4);
+        if (!is_register_context) {
+            ckpt_segment -> start = (void *)start;
+            ckpt_segment -> end = (void *)end;
+            strncpy(ckpt_segment->name, filename, NAME_LEN-1);
+            memcpy(ckpt_segment->rwxp, rwxp, 4);
+        }
     }
+
+    return rc;
 }
 
 int main() {
@@ -69,29 +83,35 @@ int main() {
     char filename [100];
     if (fd == -1) {perror("open");}
     int i = 0;
-    int j = i;
+    int j = 0;
     int rc = -2; // any value that will not terminate the 'for' loop.
     for (i = 0; rc != EOF; i++) {
+        sleep(1);
         rc = read_one_line(fd, &proc_maps[j], filename);
         if (in_data_section) {
-
+            in_data_section = 0;
         } else {
-
+            in_data_section = 1;
+            j++;
         }
-
     }
     close(fd);
     printf("closing\n");
     
-    // // Debugging
-    // i = 0;
-    // for (i = 0; proc_maps[i].start != NULL; i++) {
-    //     printf("%s (%c%c%c)\n"
-    //         "  Address-range: %p - %p\n",
-    //         proc_maps[i].name,
-    //         proc_maps[i].rwxp[0], proc_maps[i].rwxp[1], proc_maps[i].rwxp[2],
-    //         proc_maps[i].start, proc_maps[i].end);
-    // }
+    // Debugging
+    i = 0;
+    for (i = 0; proc_maps[i].start != NULL || proc_maps[i].is_register_context; i++) {
+        printf("%d\n", i);
+        if (proc_maps[i].is_register_context) {
+            printf("data_size: %d\n", proc_maps[i].data_size);
+        } else {
+            printf("%s (%c%c%c)\n"
+                "  Address-range: %p - %p\n",
+                proc_maps[i].name,
+                proc_maps[i].rwxp[0], proc_maps[i].rwxp[1], proc_maps[i].rwxp[2],
+                proc_maps[i].start, proc_maps[i].end);
+        }
+    }
 
     return 0;
 }

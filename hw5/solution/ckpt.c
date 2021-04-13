@@ -25,7 +25,7 @@ struct ckpt_segment {
 };
 
 
-void save(int fd, void* start_address, int length) {
+void save_data(int fd, void* start_address, int length) {
   int rc = write(fd, (void *)start_address, length);
   if (rc == -1) {
     perror("write");
@@ -41,12 +41,12 @@ void save_header(struct ckpt_segment segment_header, int fd) {
   char buf[200];
 
   if (segment_header.is_register_context) {
-    sprintf(buf, "iscontext:%d|start:NULL|end:NULL|rwxp:----|datasize:%d|name:NULL", 
+    sprintf(buf, "%d|0|0|----|%d|NULL", 
         segment_header.is_register_context, segment_header.data_size);
 
   } else {
-        int data_size = segment_header.end - segment_header.start + 1;
-        sprintf(buf, "iscontext:%d|start:%p|end:%p|rwxp:%c%c%c%c|datasize:%d|name:%s", 
+        int data_size = segment_header.end - segment_header.start;
+        sprintf(buf, "%d|%p|%p|%c%c%c%c|%d|%s", 
             segment_header.is_register_context, segment_header.start, segment_header.end, 
             segment_header.rwxp[0], segment_header.rwxp[1], segment_header.rwxp[2], segment_header.rwxp[3], 
             data_size, segment_header.name);
@@ -66,8 +66,8 @@ void save_header(struct ckpt_segment segment_header, int fd) {
   assert(rc == nbytes);
 }
 
-// print a newline into the checkpoint file
-void save_newline(int fd) {
+// print a "\n,\n" into the checkpoint file to separate each segment from others
+void save_section_separator(int fd) {
     char newline[4] = "\n,\n";
     int rc = write(fd, newline, 3);
     if (rc == -1) {
@@ -77,11 +77,16 @@ void save_newline(int fd) {
     assert(rc == 3);
 }
 
+// Function that saves everything into a checkpoint file
 // Checkpoint file structure (newline separated):
 // Header1
+// ,
 // Data1
+// ,
 // Header2
+// ,
 // Data2
+// ,
 // ...
 void save_into_checkpoint_file(struct ckpt_segment proc_maps[], struct ckpt_segment cntx, ucontext_t *context, char *filename) {
   int fd = open(filename, O_WRONLY|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR);
@@ -89,10 +94,11 @@ void save_into_checkpoint_file(struct ckpt_segment proc_maps[], struct ckpt_segm
 
   // save context
   save_header(cntx, fd);
-  // print new line after each segment
-  save_newline(fd);
-  save(fd, context, cntx.data_size);
-  save_newline(fd);
+  save_section_separator(fd);
+  printf("saved context header\n");
+  save_data(fd, context, cntx.data_size);
+  save_section_separator(fd);
+  printf("saved context data\n");
 
   // save /proc/self/maps
   int i = 0;
@@ -102,16 +108,18 @@ void save_into_checkpoint_file(struct ckpt_segment proc_maps[], struct ckpt_segm
       continue;
     }
 
-    int data_size = proc_maps[i].end - proc_maps[i].start + 1;
+    // Ignore segments that are not read-only
+    if (proc_maps[i].rwxp[0] != 'r') {
+      continue;
+    }
+
+    int data_size = proc_maps[i].end - proc_maps[i].start;
     save_header(proc_maps[i], fd);
-
-    // print new line after each segment
-    save_newline(fd);
-
-    save(fd, proc_maps[i].start, data_size);
-
-    // print new line after each segment
-    save_newline(fd);
+    save_section_separator(fd);
+    printf("saved proc header with name:%s\n", proc_maps[i].name);
+    save_data(fd, proc_maps[i].start, data_size);
+    save_section_separator(fd);
+    printf("saved proc data\n");
   }
 
   close(fd);
@@ -172,7 +180,7 @@ int proc_self_maps(struct ckpt_segment proc_maps[]) {
 // Signal Handler
 void signal_handler(int signal) {
   is_in_signal_handler = 1;
-  fprintf(stderr, "\n\n*** IN SIGNAL HANDLER. CHECKPOINTING:\n");
+  fprintf(stderr, "\n\n**** CHECKPOINTING ****\n");
 
   // Save Context
   ucontext_t context;  // A context includes the register values
@@ -190,27 +198,18 @@ void signal_handler(int signal) {
   cntx.is_register_context = 1;
   cntx.data_size = sizeof(context);
 
-  // Read /proc/self/maps
+  // Read /proc/self/maps and put into proc_maps
   struct ckpt_segment proc_maps[1000];
   assert( proc_self_maps(proc_maps) == 0 );
-  assert( proc_self_maps(proc_maps) == 0 ); // proc_self_maps called twice
+  // calling this function twice creates issues sometimes and we will not be able to . So I just call it once. 
+  // assert( proc_self_maps(proc_maps) == 0 );
   
 
   // saving each memory segment into mycckpt
   char *filename = "myckpt";
   save_into_checkpoint_file(proc_maps, cntx, &context, filename);
 
-
-  // Debugging
-  int i = 0;
-  for (i = 0; proc_maps[i].start != NULL; i++) {
-    printf("%s (%c%c%c)\n"
-           "  Address-range: %p - %p\n",
-           proc_maps[i].name,
-           proc_maps[i].rwxp[0], proc_maps[i].rwxp[1], proc_maps[i].rwxp[2],
-           proc_maps[i].start, proc_maps[i].end);
-  }
-
+  // call constructor again
   my_constructor();
   is_in_signal_handler = 0;
 }
