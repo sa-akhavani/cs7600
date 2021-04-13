@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-g3 -O0
+CFLAGS=-g3 -O0 -fno-stack-protector
 
 # ============================================
 # ================Added Parts=================
