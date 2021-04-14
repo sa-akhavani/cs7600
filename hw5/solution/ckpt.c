@@ -90,10 +90,10 @@ void save_into_checkpoint_file(struct ckpt_segment proc_maps[], struct ckpt_segm
   // save context
   save_header(cntx, fd_h);
   save_section_separator(fd_h);
-  printf("saved context header\n");
+  // printf("saved context header\n");
   save_data(fd, context, cntx.data_size);
   save_section_separator(fd);
-  printf("saved context data\n");
+  // printf("saved context data\n");
 
   // save /proc/self/maps
   int i = 0;
@@ -111,10 +111,10 @@ void save_into_checkpoint_file(struct ckpt_segment proc_maps[], struct ckpt_segm
     int data_size = proc_maps[i].end - proc_maps[i].start;
     save_header(proc_maps[i], fd_h);
     save_section_separator(fd_h);
-    printf("saved proc header with name:%s\n", proc_maps[i].name);
+    // printf("saved proc header with name:%s\n", proc_maps[i].name);
     save_data(fd, proc_maps[i].start, data_size);
     save_section_separator(fd);
-    printf("saved proc data\n");
+    // printf("saved proc data\n");
   }
 
   close(fd);
