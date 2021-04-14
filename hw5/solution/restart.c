@@ -109,7 +109,7 @@ int read_data(int fd, struct ckpt_segment segment) {
         assert(rc == segment.data_size);
         if (rc == EOF)
             return EOF;
-        printf("Memory segment of length %d mmap'ed in at address %p.\n", segment.data_size, addr);
+        // printf("Memory segment of length %d mmap'ed in at address %p.\n", segment.data_size, addr);
     }
 
     // Read newline in order to reach next data segment in the next call to this function
