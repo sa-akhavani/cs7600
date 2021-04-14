@@ -13,6 +13,7 @@
 #define NAME_LEN 80
 
 int in_data_section = 0;
+off_t offsettt = 0;
 
 struct ckpt_segment {
   void *start;
@@ -27,88 +28,118 @@ struct ckpt_segment {
 // This is the format:
 // iscontext|start|end|rwxp|datasize|name
 // ,
-int read_one_line(int fd, struct ckpt_segment *ckpt_segment, char *filename) {
+int read_header(int fd, struct ckpt_segment *ckpt_segment, char *filename) {
     unsigned long int start, end;
     char rwxp[4];
     int is_register_context;
     int data_size;
+    int rc;
     char tmp[10];
     int tmp_stdin = dup(0);
-    int rc;
-    char data[1000];
     dup2(fd, 0);
-    // We are reading a header section
-    if (!in_data_section) {
-        rc = scanf("%d|%lx|%lx|%4c|%d|%s\n,\n",
-            &is_register_context, &start, &end, rwxp, &data_size, filename);
-        assert(fseek(stdin, 0, SEEK_CUR) == 0);
-        printf("is_register:%d, start:%ld, end:%ld, rwxp:%c%c%c%c, size:%d, filename:%s\n", is_register_context, start, end, rwxp[0], rwxp[1],rwxp[2],rwxp[3], data_size, filename);
 
-    } else { // We are reading a data section
-        rc = scanf("%[^\n]\n,\n", data);
-        printf("data: --%s--\n", data);
-        assert(fseek(stdin, 0, SEEK_CUR) == 0);
-    }
+    rc = scanf("%d|%lx|%lx|%4c|%d|%s[^\n]",
+        &is_register_context, &start, &end, rwxp, &data_size, filename);
+    assert(fseek(stdin, 0, SEEK_CUR) == 0);
+    // printf("is_register:%d, start:%ld, end:%ld, rwxp:%c%c%c%c, size:%d, filename:%s\n", is_register_context, start, end, rwxp[0], rwxp[1],rwxp[2],rwxp[3], data_size, filename);
+
     dup2(tmp_stdin, 0); // Restore original stdin; file offset was advanced.
     close(tmp_stdin);
-    
-    printf("RCC:%d\n", rc);
+
+
     if (rc == 0) {
-        printf("RC IS ZEROOOOOOOOOOOOOOOOOOOOOOOOOOOOOO\n");
         return 0;
     }
     if (rc == EOF) {
-        printf("EOF!\n");
         return EOF;
     }
 
-    if (!in_data_section) {
-        ckpt_segment->is_register_context = is_register_context;
-        ckpt_segment->data_size = data_size;
-        if (!is_register_context) {
-            ckpt_segment -> start = (void *)start;
-            ckpt_segment -> end = (void *)end;
-            strncpy(ckpt_segment->name, filename, NAME_LEN-1);
-            memcpy(ckpt_segment->rwxp, rwxp, 4);
-        }
+    ckpt_segment->is_register_context = is_register_context;
+    ckpt_segment->data_size = data_size;
+    if (!is_register_context) {
+        ckpt_segment -> start = (void *)start;
+        ckpt_segment -> end = (void *)end;
+        strncpy(ckpt_segment->name, filename, NAME_LEN-1);
+        memcpy(ckpt_segment->rwxp, rwxp, 4);
     }
 
     return rc;
 }
 
+int read_data(int fd, struct ckpt_segment segment) {
+    char addr[5000000] = "";
+    // void *addr;
+    // ucontext_t context;
+    // if (segment.is_register_context) {
+        // read(fd, &context, segment.data_size);
+
+    // } else {
+        // addr = mmap(segment.start, segment.data_size,
+                            // PROT_READ|PROT_WRITE|PROT_EXEC,
+                            // MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    // }
+
+    // printf("Memory segment of length %d mmap'ed in at address %p.\n",
+            // segment.data_size, segment.start);
+    // TO DETECT CURRENT MEMORY SEGMENTS, DO:  (gdb) info proc mappings
+    // // But if you need to see the permissions for the segment, then do:
+    // (gdb) info proc  # This shows the process PID
+    // (gdb) shell cat /proc/PID/maps
+
+    int rc = read(fd, addr, segment.data_size);
+    if (rc == -1) {
+        perror("read");
+        exit(1);
+    }
+    while (rc < segment.data_size) {
+        rc += read(fd, addr + rc, segment.data_size - rc);
+    }
+    assert(rc == segment.data_size);
+
+    // Read newline in order to reach next data segment in the next call to this function
+    char junk[1];
+    int new_rc = read(fd, junk, 1);
+    if (new_rc == -1) {
+        perror("read");
+        exit(1);
+    }
+    assert(new_rc == 1);
+    return 1;
+}
+
 int main() {
     struct ckpt_segment proc_maps[1000];
+    char filename [200];
 
+    // Open checkpoint data file
     int fd = open("myckpt", O_RDONLY);
-    char filename [100];
     if (fd == -1) {perror("open");}
+
+    // Open checkpoint header file
+    int fd_h = open("myckpt.header", O_RDONLY);
+    if (fd_h == -1) {perror("open");}
+
     int i = 0;
-    int j = 0;
     int rc = -2; // any value that will not terminate the 'for' loop.
     for (i = 0; rc != EOF; i++) {
-        sleep(1);
-        rc = read_one_line(fd, &proc_maps[j], filename);
-        if (in_data_section) {
-            in_data_section = 0;
-        } else {
-            in_data_section = 1;
-            j++;
-        }
+        rc = read_header(fd_h, &proc_maps[i], filename);
+        if (rc == EOF)
+            break;
+        read_data(fd, proc_maps[i]);
     }
     close(fd);
-    printf("closing\n");
-    
-    // Debugging
+    close(fd_h);
+
     i = 0;
     for (i = 0; proc_maps[i].start != NULL || proc_maps[i].is_register_context; i++) {
-        printf("%d\n", i);
         if (proc_maps[i].is_register_context) {
-            printf("data_size: %d\n", proc_maps[i].data_size);
+            printf("Register context data_size: %d\n", proc_maps[i].data_size);
+
         } else {
-            printf("%s (%c%c%c)\n"
+            printf("%s (%c%c%c%c)\n"
                 "  Address-range: %p - %p\n",
                 proc_maps[i].name,
-                proc_maps[i].rwxp[0], proc_maps[i].rwxp[1], proc_maps[i].rwxp[2],
+                proc_maps[i].rwxp[0], proc_maps[i].rwxp[1], proc_maps[i].rwxp[2], proc_maps[i].rwxp[3],
                 proc_maps[i].start, proc_maps[i].end);
         }
     }

@@ -66,35 +66,30 @@ void save_header(struct ckpt_segment segment_header, int fd) {
   assert(rc == nbytes);
 }
 
-// print a "\n,\n" into the checkpoint file to separate each segment from others
+// print a "\n" into the checkpoint file to separate each segment from others
 void save_section_separator(int fd) {
-    char newline[4] = "\n,\n";
-    int rc = write(fd, newline, 3);
+    char newline[2] = "\n";
+    int rc = write(fd, newline, 1);
     if (rc == -1) {
         perror("write");
         exit(1);
     }
-    assert(rc == 3);
+    assert(rc == 1);
 }
 
-// Function that saves everything into a checkpoint file
-// Checkpoint file structure (newline separated):
-// Header1
-// ,
-// Data1
-// ,
-// Header2
-// ,
-// Data2
-// ,
-// ...
-void save_into_checkpoint_file(struct ckpt_segment proc_maps[], struct ckpt_segment cntx, ucontext_t *context, char *filename) {
-  int fd = open(filename, O_WRONLY|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR);
+// Function that saves everything into a checkpoint files.
+// myckpt stores data segments while myckpt.header stores the header data
+void save_into_checkpoint_file(struct ckpt_segment proc_maps[], struct ckpt_segment cntx, ucontext_t *context, char *ckpt_filename, char *ckpt_header_filename) {
+  
+  int fd_h = open(ckpt_header_filename, O_WRONLY|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR);
+  if (fd_h == -1) {perror("open");}
+
+  int fd = open(ckpt_filename, O_WRONLY|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR);
   if (fd == -1) {perror("open");}
 
   // save context
-  save_header(cntx, fd);
-  save_section_separator(fd);
+  save_header(cntx, fd_h);
+  save_section_separator(fd_h);
   printf("saved context header\n");
   save_data(fd, context, cntx.data_size);
   save_section_separator(fd);
@@ -114,8 +109,8 @@ void save_into_checkpoint_file(struct ckpt_segment proc_maps[], struct ckpt_segm
     }
 
     int data_size = proc_maps[i].end - proc_maps[i].start;
-    save_header(proc_maps[i], fd);
-    save_section_separator(fd);
+    save_header(proc_maps[i], fd_h);
+    save_section_separator(fd_h);
     printf("saved proc header with name:%s\n", proc_maps[i].name);
     save_data(fd, proc_maps[i].start, data_size);
     save_section_separator(fd);
@@ -206,8 +201,9 @@ void signal_handler(int signal) {
   
 
   // saving each memory segment into mycckpt
-  char *filename = "myckpt";
-  save_into_checkpoint_file(proc_maps, cntx, &context, filename);
+  char *ckpt_name = "myckpt";
+  char *ckpt_header_name = "myckpt.header";
+  save_into_checkpoint_file(proc_maps, cntx, &context, ckpt_name, ckpt_header_name);
 
   // call constructor again
   my_constructor();
