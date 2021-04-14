@@ -17,7 +17,7 @@ readckpt: readckpt.c
 	${CC} ${CFLAGS} -o $@ $<
 
 restart: restart.c
-	${CC} ${CFLAGS} -o $@ $<
+	${CC} -static -Wl,-Ttext-segment=5000000 -Wl,-Tdata=5100000 -Wl,-Tbss=5200000 -o $@ $<
 
 hello: hello.c
 	${CC} ${CFLAGS} -o $@ $<

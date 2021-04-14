@@ -9,11 +9,7 @@
 #include <string.h>
 #include <ucontext.h>
 
-
 #define NAME_LEN 80
-
-int in_data_section = 0;
-off_t offsettt = 0;
 
 struct ckpt_segment {
   void *start;
@@ -27,7 +23,6 @@ struct ckpt_segment {
 // Same process that is done in reading /proc/self/maps but this time for myckpt file
 // This is the format:
 // iscontext|start|end|rwxp|datasize|name
-// ,
 int read_header(int fd, struct ckpt_segment *ckpt_segment, char *filename) {
     unsigned long int start, end;
     char rwxp[4];
