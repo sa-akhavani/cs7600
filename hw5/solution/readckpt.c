@@ -63,24 +63,6 @@ int read_header(int fd, struct ckpt_segment *ckpt_segment, char *filename) {
 
 int read_data(int fd, struct ckpt_segment segment) {
     char addr[5000000] = "";
-    // void *addr;
-    // ucontext_t context;
-    // if (segment.is_register_context) {
-        // read(fd, &context, segment.data_size);
-
-    // } else {
-        // addr = mmap(segment.start, segment.data_size,
-                            // PROT_READ|PROT_WRITE|PROT_EXEC,
-                            // MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    // }
-
-    // printf("Memory segment of length %d mmap'ed in at address %p.\n",
-            // segment.data_size, segment.start);
-    // TO DETECT CURRENT MEMORY SEGMENTS, DO:  (gdb) info proc mappings
-    // // But if you need to see the permissions for the segment, then do:
-    // (gdb) info proc  # This shows the process PID
-    // (gdb) shell cat /proc/PID/maps
-
     int rc = read(fd, addr, segment.data_size);
     if (rc == -1) {
         perror("read");

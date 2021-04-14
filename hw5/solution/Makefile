@@ -29,14 +29,14 @@ libckpt.so: ckpt
 
 check: checkpoint restart hello libckpt.so
 	rm -f myckpt  # Remove any older 'myckpt' files
-	./checkpoint hello &
+	./checkpoint ./hello 10 &
 	sleep 2
 	echo Checkpointing ...
 	kill -12 `pgrep -n hello`
 	sleep 2
 	echo Restarting ...
 	pkill -9 hello  # Kill your 'hello' program
-	./restart myckpt
+	./restart
 
 # ============================================
 # =============End of Added Parts=============
@@ -82,6 +82,8 @@ clean:
 	rm -f libconstructor?.so constructor?.o test? test
 	rm -f proc-self-maps save-restore-memory save-restore.dat
 	rm -f checkpoint ckpt hello readckpt restart libckpt.so
+	rm -f myckpt myckpt.header
+	rm -f while1
 
 dist: clean
 	dir=`basename $$PWD` && cd .. && tar czvf $$dir.tar.gz ./$$dir

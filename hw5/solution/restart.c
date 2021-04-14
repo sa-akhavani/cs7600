@@ -16,7 +16,7 @@ struct ckpt_segment {
   void *start;
   void *end;
   char rwxp[4];
-  int is_register_context; // Is this a context from sigsetjmp? If so, ignore the start_address, end_address, and read/write/execute.
+  int is_register_context; // Is this a context? If so, ignore the start_address, end_address, and read/write/execute.
   int data_size;  // Size of DATA after this HEADER.
   char name[NAME_LEN]; // for debugging only
 };
@@ -58,38 +58,45 @@ int read_header(int fd, struct ckpt_segment *ckpt_segment, char *filename) {
         strncpy(ckpt_segment->name, filename, NAME_LEN-1);
         memcpy(ckpt_segment->rwxp, rwxp, 4);
     }
-
     return rc;
 }
 
 // Read data segment from myckpt file
 int read_data(int fd, struct ckpt_segment segment) {
-    void *addr;
-
     // Read Context if we see is_register_context is 1
     if (segment.is_register_context) {
         read(fd, &context, segment.data_size);
         
-
     } else { // Restore memory data segment if is_register_context is 0
 
         // Setting flags and prot for mmap
+        // There is no need to set these so I commented them out
+        /*
         int flags = 0;
         if (!strcmp(segment.name, "ANONYMOUS_SEGMENT")) {
             flags = flags | MAP_ANONYMOUS;
         }
-
         int prot = PROT_READ;
         if (segment.rwxp[1] == 'w')
             prot = prot | PROT_WRITE;
-        if (segment.rwxp[1] == 'x')
+        if (segment.rwxp[2] == 'x')
             prot = prot | PROT_EXEC;
-        if (segment.rwxp[1] == 'p')
+        if (segment.rwxp[3] == 'p')
             flags = flags | MAP_PRIVATE;
 
         // Calling mmap after setting prot and flags
-        addr = mmap(segment.start, segment.data_size,
-                            prot, flags, -1, 0);
+        void *addr = mmap(segment.start, segment.data_size,
+                            prot | PROT_EXEC, flags, -1, 0);
+        */
+       
+
+        // MAP_PRIVATE corresponds to the 'p' in things like 'r-xp' in /proc/*/maps
+        // MAP_ANONYMOUS means that this memory has no backing file.  So, in
+        //   /proc/*/maps, there will be no filename associated with this segment.
+        // We will need execute permission if we want to load code at this address.
+        void *addr = mmap(segment.start, segment.data_size,
+                            PROT_READ|PROT_WRITE|PROT_EXEC,
+                            MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);        
         
         int rc = read(fd, addr, segment.data_size);
         if (rc == -1) {
@@ -97,24 +104,19 @@ int read_data(int fd, struct ckpt_segment segment) {
             exit(1);
         }
         while (rc < segment.data_size) {
-            rc += read(fd, addr + rc, segment.data_size - rc);
+            rc += read(fd, (char *)addr + rc, segment.data_size - rc);
         }
         assert(rc == segment.data_size);
+        if (rc == EOF)
+            return EOF;
+        printf("Memory segment of length %d mmap'ed in at address %p.\n", segment.data_size, addr);
     }
-
-    printf("Memory segment of length %d mmap'ed in at address %p.\n",
-            segment.data_size, segment.start);
-
-    // TO DETECT CURRENT MEMORY SEGMENTS, DO:  (gdb) info proc mappings
-    // // But if you need to see the permissions for the segment, then do:
-    // (gdb) info proc  # This shows the process PID
-    // (gdb) shell cat /proc/PID/maps
 
     // Read newline in order to reach next data segment in the next call to this function
     char junk[1];
     int new_rc = read(fd, junk, 1);
     if (new_rc == -1) {
-        perror("read");
+        perror("read newline");
         exit(1);
     }
     assert(new_rc == 1);
@@ -123,10 +125,6 @@ int read_data(int fd, struct ckpt_segment segment) {
 
 
 void do_work() {
-    //  We will
-    //  map in each memory segment in 'myckpt'.  We will use the MAP_FIXED
-    //  flag from 'man mmap' to specify the exact address to restore the segment.
-
     struct ckpt_segment proc_maps[1000];
     char filename [200];
 
@@ -153,12 +151,22 @@ void do_work() {
     setcontext(&context);
 }
 
-int main() {
-    mmap(0x6000000, 0x1000000, PROT_READ | PROT_WRITE,
-            MAP_FIXED | MAP_ANONYMOUS, -1, 0);
-    void *stack_ptr = 0x6000000 + 0x1000000 - 16;
-    asm volatile ("mov %0,%%rsp;" : : "g" (stack_ptr) : "memory");
-    do_work();
+// growing the stack with many call frames, so that the latest call frame will be at an address with no conflict.
+void recursive(int levels) {
+    if (levels > 0) {
+        recursive(levels - 1);
+    } else {
+        do_work();
+    }
+}
 
+int main() {
+    // mmap(0x6000000, 0x1000000, PROT_READ | PROT_WRITE,
+    //         MAP_FIXED | MAP_ANONYMOUS, -1, 0);
+    // void *stack_ptr = 0x6000000 + 0x1000000 - 16;
+    // asm volatile ("mov %0,%%rsp;" : : "g" (stack_ptr) : "memory");
+
+    // For some reason the mmap method did not work properly so I used the recursive way to grow stack
+    recursive(1000);
     return 0;
 }
