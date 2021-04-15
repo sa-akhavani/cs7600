@@ -118,6 +118,7 @@ void save_into_checkpoint_file(struct ckpt_segment proc_maps[], struct ckpt_segm
   }
 
   close(fd);
+  close(fd_h);
 }
 
 // Returns 0 on success
