@@ -65,7 +65,15 @@ int read_header(int fd, struct ckpt_segment *ckpt_segment, char *filename) {
 int read_data(int fd, struct ckpt_segment segment) {
     // Read Context if we see is_register_context is 1
     if (segment.is_register_context) {
-        read(fd, &context, segment.data_size);
+        int rrc = read(fd, &context, segment.data_size);
+        if (rrc == -1) {
+            perror("read");
+            exit(1);
+        }
+        while (rrc < segment.data_size) {
+            rrc += read(fd, &context + rrc, segment.data_size - rrc);
+        }
+        assert(rrc == segment.data_size);
         
     } else { // Restore memory data segment if is_register_context is 0
 
